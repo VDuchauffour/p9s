@@ -417,4 +417,31 @@ mod tests {
             _ => panic!("Expected UNAUTHORIZED status code"),
         }
     }
+
+    #[test]
+    fn test_forbidden_handling() {
+        let status = reqwest::StatusCode::FORBIDDEN;
+        match status {
+            reqwest::StatusCode::FORBIDDEN => {
+                let err = ProxmoxError::Forbidden;
+                assert_eq!(format!("{}", err), "Forbidden — insufficient permissions");
+            }
+            _ => panic!("Expected FORBIDDEN status code"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_connection_refused() {
+        let client = reqwest::Client::builder().no_proxy().build().unwrap();
+        let err = client
+            .get("http://127.0.0.1:1/")
+            .send()
+            .await
+            .unwrap_err();
+
+        assert!(err.is_connect() || err.is_request());
+
+        let proxmox_err = ProxmoxError::Http(err);
+        assert!(matches!(proxmox_err, ProxmoxError::Http(_)));
+    }
 }
