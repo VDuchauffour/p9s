@@ -368,10 +368,11 @@ mod tests {
         ]);
         app.set_filter("web".to_string());
         assert_eq!(app.filtered_resources().len(), 2);
-        assert!(app
-            .filtered_resources()
-            .iter()
-            .all(|r| r.name.starts_with("web")));
+        assert!(
+            app.filtered_resources()
+                .iter()
+                .all(|r| r.name.starts_with("web"))
+        );
     }
 
     #[test]
@@ -886,10 +887,11 @@ mod tests {
         app.set_filter("web".to_string());
         assert_eq!(app.filter, "web");
         assert_eq!(app.filtered_resources().len(), 2);
-        assert!(app
-            .filtered_resources()
-            .iter()
-            .all(|r| r.name.starts_with("web")));
+        assert!(
+            app.filtered_resources()
+                .iter()
+                .all(|r| r.name.starts_with("web"))
+        );
 
         app.set_filter("".to_string());
         assert!(app.filter.is_empty());

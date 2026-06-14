@@ -13,6 +13,7 @@ repos:
       - id: check-case-conflict
       - id: check-added-large-files
       - id: detect-private-key
+    # Formatter for Json files
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v4.0.0-alpha.8
     hooks:
@@ -23,10 +24,12 @@ repos:
     rev: 1.19.1
     hooks:
       - id: yamlfix
+    # Formatter for Toml files
   - repo: https://github.com/ComPWA/mirrors-taplo
     rev: v0.9.3
     hooks:
       - id: taplo-format
+  # Formatter for markdown files
   - repo: https://github.com/executablebooks/mdformat
     rev: 0.7.22
     hooks:
@@ -43,5 +46,10 @@ repos:
       - id: just-check
         name: just check
         entry: just check
+        language: system
+        pass_filenames: false
+      - id: just-ci-fix
+        name: just ci-fix
+        entry: just ci-fix
         language: system
         pass_filenames: false

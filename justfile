@@ -1,15 +1,6 @@
 _default:
     @just --list
 
-install:
-    cargo install --path .
-
-clean:
-    cargo clean
-
-update:
-    cargo update
-
 build:
     cargo build
 
@@ -23,16 +14,16 @@ run-release *args:
     cargo run --release -- {{args}}
 
 test:
-    cargo test
+    cargo test --locked
 
 lint:
     cargo clippy --all-targets --all-features
 
 lint-strict:
-    cargo clippy --all-targets --all-features -- -D warnings
+    cargo clippy --all-targets --all-features --locked -- -D warnings
 
 lint-strict-fix:
-    cargo clippy --fix --allow-dirty --all-targets --all-features -- -D warnings
+    cargo clippy --fix --allow-dirty --all-targets --all-features --locked -- -D warnings
 
 fmt:
     cargo +nightly fmt
@@ -43,9 +34,15 @@ fmt-check:
 check:
     cargo check
 
-doc:
-    cargo doc --no-deps --open
-
 ci: fmt-check lint-strict test
 
 ci-fix: fmt lint-strict-fix test
+
+install:
+    cargo install --path .
+
+clean:
+    cargo clean
+
+update:
+    cargo update

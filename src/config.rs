@@ -2,12 +2,11 @@ use std::fs;
 use std::path::PathBuf;
 
 use clap::Parser;
-use serde::Deserialize;
-
 use clap::builder::{
     Styles,
     styling::{AnsiColor, Effects},
 };
+use serde::Deserialize;
 
 pub fn cargo_styles() -> Styles {
     Styles::styled()
@@ -19,7 +18,6 @@ pub fn cargo_styles() -> Styles {
         .valid(AnsiColor::Cyan.on_default().effects(Effects::BOLD))
         .invalid(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
 }
-
 
 #[derive(Debug, Deserialize, Parser)]
 #[command(name = "metron", about = "A k9s-like terminal UI for Proxmox VE", styles = cargo_styles())]
