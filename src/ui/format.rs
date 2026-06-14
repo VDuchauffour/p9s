@@ -1,10 +1,8 @@
 /// Human-readable label for a resource view type.
 pub fn view_label(view: &str) -> &str {
     match view {
-        "node" => "Nodes",
         "qemu" => "VMs",
-        "lxc" => "Containers",
-        "storage" => "Storage",
+        "lxc" => "containers",
         other => other,
     }
 }
@@ -37,10 +35,10 @@ mod tests {
 
     #[test]
     fn view_label_maps_known_types() {
-        assert_eq!(view_label("node"), "Nodes");
+        assert_eq!(view_label("node"), "node");
         assert_eq!(view_label("qemu"), "VMs");
-        assert_eq!(view_label("lxc"), "Containers");
-        assert_eq!(view_label("storage"), "Storage");
+        assert_eq!(view_label("lxc"), "containers");
+        assert_eq!(view_label("storage"), "storage");
     }
 
     #[test]
