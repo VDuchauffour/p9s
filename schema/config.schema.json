@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/p9s/p9s/schema/config.schema.json",
+  "title": "p9s configuration",
+  "description": "Configuration file for p9s, a k9s-like terminal UI for Proxmox VE. Located at ~/.config/p9s/config.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "connection": {
+      "type": "object",
+      "description": "Proxmox VE connection settings. CLI flags override these values.",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Proxmox host URL (e.g. https://pve.local).",
+          "format": "uri"
+        },
+        "token_id": {
+          "type": "string",
+          "description": "API token ID (e.g. root@pam!p9s)."
+        },
+        "token": {
+          "type": "string",
+          "description": "API token secret."
+        },
+        "insecure": {
+          "type": "boolean",
+          "description": "Allow insecure HTTPS for self-signed certificates.",
+          "default": false
+        }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "description": "User interface settings.",
+      "additionalProperties": false,
+      "properties": {
+        "theme": {
+          "type": "string",
+          "description": "Color theme. 'default' uses the full palette; 'no-color' disables colors.",
+          "enum": ["default", "no-color"],
+          "default": "default"
+        }
+      }
+    },
+    "refresh_interval": {
+      "type": "integer",
+      "description": "Data refresh interval in seconds.",
+      "minimum": 1,
+      "default": 5
+    },
+    "filter": {
+      "type": "string",
+      "description": "Initial resource filter."
+    }
+  }
+}

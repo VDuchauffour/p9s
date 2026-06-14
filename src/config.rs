@@ -1,11 +1,11 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use clap::Parser;
 use clap::builder::{
     Styles,
     styling::{AnsiColor, Effects},
 };
+use clap::{Parser, ValueEnum};
 use serde::Deserialize;
 
 pub fn cargo_styles() -> Styles {
@@ -19,40 +19,94 @@ pub fn cargo_styles() -> Styles {
         .invalid(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
 }
 
-#[derive(Debug, Deserialize, Parser)]
+/// UI color theme. Replaces the old `--no-color` boolean.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+pub enum ThemeKind {
+    /// Full color palette.
+    #[default]
+    Default,
+    /// Disable colors (monochrome output).
+    NoColor,
+}
+
+/// Command-line arguments. Flat by design; values provided here take
+/// precedence over the config file.
+#[derive(Debug, Parser)]
 #[command(name = "p9s", about = "A k9s-like terminal UI for Proxmox VE", styles = cargo_styles())]
-pub struct Config {
+pub struct Cli {
     #[arg(long, help = "Proxmox host URL")]
-    #[serde(default)]
     pub host: Option<String>,
 
     #[arg(long, help = "API token ID (e.g. root@pam!p9s)")]
-    #[serde(default)]
     pub token_id: Option<String>,
 
     #[arg(long, help = "API token secret")]
-    #[serde(default)]
     pub token: Option<String>,
 
-    #[arg(long, help = "Allow insecure HTTPS (self-signed certs)")]
-    #[serde(default)]
-    pub insecure: bool,
+    #[arg(
+        long,
+        num_args = 0..=1,
+        default_missing_value = "true",
+        help = "Allow insecure HTTPS (self-signed certs)"
+    )]
+    pub insecure: Option<bool>,
 
-    #[arg(long, help = "Data refresh interval in seconds", default_value = "5")]
-    #[serde(default = "default_refresh_interval")]
-    pub refresh_interval: u64,
+    #[arg(long, help = "Data refresh interval in seconds")]
+    pub refresh_interval: Option<u64>,
 
     #[arg(long, help = "Initial resource filter")]
-    #[serde(default)]
     pub filter: Option<String>,
 
-    #[arg(long, help = "Disable colors")]
-    #[serde(default)]
-    pub no_color: bool,
+    #[arg(long, value_enum, help = "UI theme")]
+    pub theme: Option<ThemeKind>,
 
     #[arg(long, help = "Path to config file")]
-    #[serde(skip)]
     pub config: Option<PathBuf>,
+}
+
+/// On-disk config file. Mirrors the published JSON schema
+/// (`schema/config.schema.json`).
+#[derive(Debug, Default, Deserialize)]
+struct FileConfig {
+    #[serde(default)]
+    connection: ConnectionSection,
+    #[serde(default)]
+    ui: UiSection,
+    #[serde(default)]
+    refresh_interval: Option<u64>,
+    #[serde(default)]
+    filter: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ConnectionSection {
+    #[serde(default)]
+    host: Option<String>,
+    #[serde(default)]
+    token_id: Option<String>,
+    #[serde(default)]
+    token: Option<String>,
+    #[serde(default)]
+    insecure: Option<bool>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UiSection {
+    #[serde(default)]
+    theme: Option<ThemeKind>,
+}
+
+/// Fully resolved runtime configuration consumed by the app.
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub host: Option<String>,
+    pub token_id: Option<String>,
+    pub token: Option<String>,
+    pub insecure: bool,
+    pub refresh_interval: u64,
+    pub filter: Option<String>,
+    pub theme: ThemeKind,
 }
 
 impl Default for Config {
@@ -64,9 +118,15 @@ impl Default for Config {
             insecure: false,
             refresh_interval: default_refresh_interval(),
             filter: None,
-            no_color: false,
-            config: None,
+            theme: ThemeKind::Default,
         }
+    }
+}
+
+impl Config {
+    /// Whether colors are disabled.
+    pub fn no_color(&self) -> bool {
+        self.theme == ThemeKind::NoColor
     }
 }
 
@@ -74,30 +134,77 @@ fn default_refresh_interval() -> u64 {
     5
 }
 
-impl Config {
-    pub fn load(self) -> anyhow::Result<Config> {
-        self.load_with_env(|key| std::env::var(key))
+fn default_config_path() -> Option<PathBuf> {
+    std::env::var("HOME")
+        .ok()
+        .map(|home| PathBuf::from(home).join(".config/p9s/config.yaml"))
+}
+
+const CONFIG_SCHEMA: &str = include_str!("../schema/config.schema.json");
+
+fn validate_against_schema(value: &serde_json::Value) -> anyhow::Result<()> {
+    let schema: serde_json::Value =
+        serde_json::from_str(CONFIG_SCHEMA).expect("embedded config schema is valid JSON");
+    let validator = jsonschema::draft7::options()
+        .should_validate_formats(true)
+        .build(&schema)
+        .expect("embedded config schema is a valid JSON Schema");
+
+    let errors: Vec<String> = validator
+        .iter_errors(value)
+        .map(|error| format!("  - {} (at `{}`)", error, error.instance_path()))
+        .collect();
+
+    if !errors.is_empty() {
+        anyhow::bail!("config file does not match schema:\n{}", errors.join("\n"));
     }
 
-    fn load_with_env<E>(self, env_get: E) -> anyhow::Result<Config>
-    where
-        E: FnOnce(&str) -> Result<String, std::env::VarError>,
+    Ok(())
+}
+
+fn read_file_config(path: Option<&Path>) -> anyhow::Result<FileConfig> {
+    let resolved = match path {
+        Some(p) => Some(p.to_path_buf()),
+        None => default_config_path(),
+    };
+
+    if let Some(p) = resolved
+        && p.exists()
     {
-        let mut cfg = if let Some(path) = self.config.as_ref() {
-            let contents = fs::read_to_string(path)?;
-            serde_yaml::from_str(&contents)?
-        } else if let Ok(home) = std::env::var("HOME") {
-            let default_path = PathBuf::from(home).join(".p9s/config.yaml");
-            if default_path.exists() {
-                let contents = fs::read_to_string(&default_path)?;
-                serde_yaml::from_str(&contents)?
-            } else {
-                Config::default()
-            }
-        } else {
-            Config::default()
+        let contents = fs::read_to_string(&p)?;
+        let value: serde_json::Value = serde_yaml::from_str(&contents)?;
+        if value.is_null() {
+            return Ok(FileConfig::default());
+        }
+        validate_against_schema(&value)?;
+        return Ok(serde_json::from_value(value)?);
+    }
+
+    Ok(FileConfig::default())
+}
+
+impl Cli {
+    /// Resolve final configuration: load the file (if present), then apply
+    /// CLI overrides on top. CLI values take precedence over file values.
+    pub fn load(self) -> anyhow::Result<Config> {
+        let FileConfig {
+            connection,
+            ui,
+            refresh_interval,
+            filter,
+        } = read_file_config(self.config.as_deref())?;
+
+        let mut cfg = Config {
+            host: connection.host,
+            token_id: connection.token_id,
+            token: connection.token,
+            insecure: connection.insecure.unwrap_or(false),
+            refresh_interval: refresh_interval.unwrap_or_else(default_refresh_interval),
+            filter,
+            theme: ui.theme.unwrap_or_default(),
         };
 
+        // CLI overrides — only when a value was actually provided.
         if self.host.is_some() {
             cfg.host = self.host;
         }
@@ -107,14 +214,17 @@ impl Config {
         if self.token.is_some() {
             cfg.token = self.token;
         }
-        cfg.insecure = self.insecure;
-        cfg.refresh_interval = self.refresh_interval;
-        cfg.no_color = self.no_color;
-
-        if cfg.token.is_none()
-            && let Ok(token) = env_get("P9S_TOKEN")
-        {
-            cfg.token = Some(token);
+        if let Some(insecure) = self.insecure {
+            cfg.insecure = insecure;
+        }
+        if let Some(refresh_interval) = self.refresh_interval {
+            cfg.refresh_interval = refresh_interval;
+        }
+        if self.filter.is_some() {
+            cfg.filter = self.filter;
+        }
+        if let Some(theme) = self.theme {
+            cfg.theme = theme;
         }
 
         Ok(cfg)
@@ -127,34 +237,58 @@ mod tests {
 
     use super::*;
 
+    fn cli_with_config(config: PathBuf) -> Cli {
+        Cli {
+            host: None,
+            token_id: None,
+            token: None,
+            insecure: None,
+            refresh_interval: None,
+            filter: None,
+            theme: None,
+            config: Some(config),
+        }
+    }
+
     #[test]
     fn test_yaml_config_parsing() {
         let yaml = r#"
-host: https://pve.example.com
-token_id: root@pam!p9s
-token: secret123
-insecure: true
+connection:
+  host: https://pve.example.com
+  token_id: root@pam!p9s
+  token: secret123
+  insecure: true
+ui:
+  theme: no-color
 refresh_interval: 10
-no_color: true
 "#;
-        let config: Config = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(config.host, Some("https://pve.example.com".to_string()));
-        assert_eq!(config.token_id, Some("root@pam!p9s".to_string()));
-        assert_eq!(config.token, Some("secret123".to_string()));
-        assert!(config.insecure);
-        assert_eq!(config.refresh_interval, 10);
-        assert!(config.no_color);
+        let file: FileConfig = serde_yaml::from_str(yaml).unwrap();
+        let conn = file.connection;
+        assert_eq!(conn.host, Some("https://pve.example.com".to_string()));
+        assert_eq!(conn.token_id, Some("root@pam!p9s".to_string()));
+        assert_eq!(conn.token, Some("secret123".to_string()));
+        assert_eq!(conn.insecure, Some(true));
+        assert_eq!(file.ui.theme, Some(ThemeKind::NoColor));
+        assert_eq!(file.refresh_interval, Some(10));
+    }
+
+    #[test]
+    fn test_schema_rejects_unknown_connection_field() {
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        writeln!(tmp, "connection:\n  hostname: https://pve.example.com").unwrap();
+
+        let args = cli_with_config(tmp.path().to_path_buf());
+        assert!(args.load().is_err());
     }
 
     #[test]
     fn test_cli_overrides_file() {
         let mut tmp = tempfile::NamedTempFile::new().unwrap();
-        writeln!(tmp, "host: https://file.example.com").unwrap();
+        writeln!(tmp, "connection:\n  host: https://file.example.com").unwrap();
 
-        let args = Config {
-            config: Some(tmp.path().to_path_buf()),
+        let args = Cli {
             host: Some("https://cli.example.com".to_string()),
-            ..Default::default()
+            ..cli_with_config(tmp.path().to_path_buf())
         };
 
         let cfg = args.load().unwrap();
@@ -162,27 +296,117 @@ no_color: true
     }
 
     #[test]
-    fn test_p9s_token_env_fallback() {
-        let args = Config {
-            token: None,
-            ..Default::default()
+    fn test_file_values_used_when_no_cli() {
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        writeln!(
+            tmp,
+            "connection:\n  host: https://file.example.com\n  insecure: true\nui:\n  theme: no-color\nrefresh_interval: 20"
+        )
+        .unwrap();
+
+        let args = cli_with_config(tmp.path().to_path_buf());
+
+        let cfg = args.load().unwrap();
+        assert_eq!(cfg.host, Some("https://file.example.com".to_string()));
+        assert!(cfg.insecure);
+        assert_eq!(cfg.refresh_interval, 20);
+        assert_eq!(cfg.theme, ThemeKind::NoColor);
+        assert!(cfg.no_color());
+    }
+
+    #[test]
+    fn test_cli_insecure_false_overrides_file_true() {
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        writeln!(tmp, "connection:\n  insecure: true").unwrap();
+
+        let args = Cli {
+            insecure: Some(false),
+            ..cli_with_config(tmp.path().to_path_buf())
         };
 
-        let cfg = args
-            .load_with_env(|_| Ok("env-token-123".to_string()))
-            .unwrap();
-        assert_eq!(cfg.token, Some("env-token-123".to_string()));
+        let cfg = args.load().unwrap();
+        assert!(!cfg.insecure);
+    }
+
+    #[test]
+    fn test_cli_insecure_true_overrides_file_false() {
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        writeln!(tmp, "connection:\n  insecure: false").unwrap();
+
+        let args = Cli {
+            insecure: Some(true),
+            ..cli_with_config(tmp.path().to_path_buf())
+        };
+
+        let cfg = args.load().unwrap();
+        assert!(cfg.insecure);
+    }
+
+    #[test]
+    fn test_missing_file_uses_defaults() {
+        let args = cli_with_config(PathBuf::from("/nonexistent/p9s/config.yaml"));
+
+        let cfg = args.load().unwrap();
+        assert_eq!(cfg.host, None);
+        assert_eq!(cfg.refresh_interval, 5);
+        assert_eq!(cfg.theme, ThemeKind::Default);
+        assert!(!cfg.no_color());
+    }
+
+    #[test]
+    fn test_embedded_schema_is_valid() {
+        let schema: serde_json::Value = serde_json::from_str(CONFIG_SCHEMA).unwrap();
+        assert!(jsonschema::meta::is_valid(&schema));
+    }
+
+    #[test]
+    fn test_schema_rejects_refresh_interval_below_minimum() {
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        writeln!(tmp, "refresh_interval: 0").unwrap();
+
+        let args = cli_with_config(tmp.path().to_path_buf());
+        let err = args.load().unwrap_err().to_string();
+        assert!(err.contains("schema"), "unexpected error: {err}");
+        assert!(err.contains("refresh_interval"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn test_schema_rejects_unknown_theme() {
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        writeln!(tmp, "ui:\n  theme: rainbow").unwrap();
+
+        let args = cli_with_config(tmp.path().to_path_buf());
+        assert!(args.load().is_err());
+    }
+
+    #[test]
+    fn test_schema_rejects_unknown_top_level_key() {
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        writeln!(tmp, "connexion:\n  host: https://pve.example.com").unwrap();
+
+        let args = cli_with_config(tmp.path().to_path_buf());
+        assert!(args.load().is_err());
+    }
+
+    #[test]
+    fn test_empty_file_uses_defaults() {
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+
+        let args = cli_with_config(tmp.path().to_path_buf());
+        let cfg = args.load().unwrap();
+        assert_eq!(cfg.refresh_interval, 5);
+        assert_eq!(cfg.theme, ThemeKind::Default);
     }
 
     #[test]
     fn test_default_refresh_interval() {
-        let args = Config::default();
-        assert_eq!(args.refresh_interval, 5);
+        let cfg = Config::default();
+        assert_eq!(cfg.refresh_interval, 5);
     }
 
     #[test]
     fn test_default_insecure() {
-        let args = Config::default();
-        assert!(!args.insecure);
+        let cfg = Config::default();
+        assert!(!cfg.insecure);
     }
 }

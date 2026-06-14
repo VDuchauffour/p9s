@@ -18,7 +18,7 @@ pub(super) const HEADER_HEIGHT: u16 = 7;
 
 /// Render the main resource list view, including header, optional filter/command bar, and table.
 pub fn render_list(frame: &mut Frame, app: &App, theme: &Theme) {
-    let no_color = app.config.no_color;
+    let no_color = app.config.no_color();
     let area = frame.area();
     let body_area = Rect {
         x: area.x,

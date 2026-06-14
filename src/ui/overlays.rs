@@ -25,7 +25,7 @@ pub fn render_filter(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
 
 /// Render the command input bar at the bottom of the list view, with tab-completion hint.
 pub fn render_command(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
-    let no_color = app.config.no_color;
+    let no_color = app.config.no_color();
 
     let mut spans = vec![
         Span::styled(" > ", theme.prompt()),
