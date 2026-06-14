@@ -20,13 +20,13 @@ pub fn cargo_styles() -> Styles {
 }
 
 #[derive(Debug, Deserialize, Parser)]
-#[command(name = "metron", about = "A k9s-like terminal UI for Proxmox VE", styles = cargo_styles())]
+#[command(name = "p9s", about = "A k9s-like terminal UI for Proxmox VE", styles = cargo_styles())]
 pub struct Config {
     #[arg(long, help = "Proxmox host URL")]
     #[serde(default)]
     pub host: Option<String>,
 
-    #[arg(long, help = "API token ID (e.g. root@pam!metron)")]
+    #[arg(long, help = "API token ID (e.g. root@pam!p9s)")]
     #[serde(default)]
     pub token_id: Option<String>,
 
@@ -87,7 +87,7 @@ impl Config {
             let contents = fs::read_to_string(path)?;
             serde_yaml::from_str(&contents)?
         } else if let Ok(home) = std::env::var("HOME") {
-            let default_path = PathBuf::from(home).join(".metron/config.yaml");
+            let default_path = PathBuf::from(home).join(".p9s/config.yaml");
             if default_path.exists() {
                 let contents = fs::read_to_string(&default_path)?;
                 serde_yaml::from_str(&contents)?
@@ -112,7 +112,7 @@ impl Config {
         cfg.no_color = self.no_color;
 
         if cfg.token.is_none()
-            && let Ok(token) = env_get("METRON_TOKEN")
+            && let Ok(token) = env_get("P9S_TOKEN")
         {
             cfg.token = Some(token);
         }
@@ -131,7 +131,7 @@ mod tests {
     fn test_yaml_config_parsing() {
         let yaml = r#"
 host: https://pve.example.com
-token_id: root@pam!metron
+token_id: root@pam!p9s
 token: secret123
 insecure: true
 refresh_interval: 10
@@ -139,7 +139,7 @@ no_color: true
 "#;
         let config: Config = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(config.host, Some("https://pve.example.com".to_string()));
-        assert_eq!(config.token_id, Some("root@pam!metron".to_string()));
+        assert_eq!(config.token_id, Some("root@pam!p9s".to_string()));
         assert_eq!(config.token, Some("secret123".to_string()));
         assert!(config.insecure);
         assert_eq!(config.refresh_interval, 10);
@@ -162,7 +162,7 @@ no_color: true
     }
 
     #[test]
-    fn test_metron_token_env_fallback() {
+    fn test_p9s_token_env_fallback() {
         let args = Config {
             token: None,
             ..Default::default()

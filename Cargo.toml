@@ -1,5 +1,5 @@
 [package]
-name = "metron"
+name = "p9s"
 version = "0.1.0"
 edition = "2024"
 description = "A k9s-like terminal UI for Proxmox VE"
@@ -8,7 +8,12 @@ authors = ["Your Name <you@example.com>"]
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls", "charset", "http2"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "native-tls",
+  "charset",
+  "http2",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"

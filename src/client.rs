@@ -285,9 +285,8 @@ mod tests {
     #[test]
     fn test_auth_header_format() {
         let client =
-            ProxmoxClient::new("https://pve.local:8006", "root@pam!metron", "abc123", false)
-                .unwrap();
-        assert_eq!(client.auth_header, "PVEAPIToken=root@pam!metron=abc123");
+            ProxmoxClient::new("https://pve.local:8006", "root@pam!p9s", "abc123", false).unwrap();
+        assert_eq!(client.auth_header, "PVEAPIToken=root@pam!p9s=abc123");
     }
 
     #[test]
