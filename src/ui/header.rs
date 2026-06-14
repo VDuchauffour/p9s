@@ -45,7 +45,7 @@ pub fn render_header(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
 }
 
 fn render_header_info(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
-    let label_style = theme.label();
+    let label_style = Style::default().fg(theme.warning);
 
     let host = app.config.host.as_deref().unwrap_or("n/a");
     let raw_user = if app.proxmox_user.is_empty() {
@@ -125,9 +125,7 @@ fn render_header_info(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
 
 fn render_header_keys(frame: &mut Frame, area: Rect, theme: &Theme) {
     let key_style = theme.key_style();
-    let label_style = Style::default()
-        .fg(Color::White)
-        .add_modifier(Modifier::BOLD);
+    let label_style = Style::default().fg(theme.dim);
 
     let keys: &[(&str, &str)] = &[
         ("<?>", "Help"),
