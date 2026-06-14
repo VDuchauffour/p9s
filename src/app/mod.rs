@@ -156,16 +156,7 @@ mod tests {
     }
 
     fn mock_config() -> Config {
-        Config {
-            host: None,
-            token_id: None,
-            token: None,
-            insecure: false,
-            refresh_interval: 5,
-            filter: None,
-            no_color: false,
-            config: None,
-        }
+        Config::default()
     }
 
     #[test]

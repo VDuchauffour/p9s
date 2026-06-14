@@ -212,7 +212,7 @@ fn render_header_keys(frame: &mut Frame, area: Rect, theme: &Theme) {
 }
 
 fn render_header_logo(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
-    let no_color = app.config.no_color;
+    let no_color = app.config.no_color();
 
     let pixel = |c: char| -> Option<Color> {
         match c {

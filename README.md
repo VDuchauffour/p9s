@@ -17,23 +17,20 @@ A k9s-like terminal UI for Proxmox VE clusters.
 cargo install p9s
 ```
 
-## Usage
-
-```bash
-p9s --host https://pve.local --token-id root@pam!p9s --token abc123 --insecure
-```
-
 ## Configuration
 
-`~/.config/p9s/config.yaml` — CLI flags override file values:
+p9s reads `~/.config/p9s/config.yaml`. CLI flags override file values:
 
 ```yaml
-host: https://pve.local
-token_id: root@pam!p9s
-token: abc123
-insecure: true
+connection:
+  host: https://pve.local
+  token_id: root@pam!p9s
+  token: abc123
+  insecure: true
+ui:
+  theme: default
 refresh_interval: 5
-no_color: false
+filter: ""
 ```
 
 ### CLI Flags
@@ -45,16 +42,12 @@ Options:
       --host <HOST>                          Proxmox host URL
       --token-id <TOKEN_ID>                  API token ID (e.g. root@pam!p9s)
       --token <TOKEN>                        API token secret
-      --insecure                             Allow insecure HTTPS (self-signed certs)
+      --insecure [<INSECURE>]                Allow insecure HTTPS (self-signed certs) [possible values: true, false]
       --refresh-interval <REFRESH_INTERVAL>  Data refresh interval in seconds [default: 5]
       --filter <FILTER>                      Initial resource filter
-      --no-color                             Disable colors
+      --theme <THEME>                        UI theme [possible values: default, no-color]
       --config <CONFIG>                      Path to config file
   -h, --help                                 Print help
 
 
 ```
-
-### Environment
-
-`P9S_TOKEN` — API token secret fallback

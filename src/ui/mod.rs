@@ -20,7 +20,7 @@ use crate::theme::Theme;
 /// Top-level render dispatcher. Selects the appropriate view based on the
 /// current modal state and delegates to the matching render function.
 pub fn render(frame: &mut Frame, app: &App) {
-    let theme = Theme::from_no_color(app.config.no_color);
+    let theme = Theme::from_no_color(app.config.no_color());
     match &app.modal {
         Some(Modal::Help) => render_help(frame, app, &theme),
         Some(Modal::Filter) => render_list(frame, app, &theme),
