@@ -134,24 +134,104 @@ impl ProxmoxClient {
         }
     }
 
-    pub async fn vm_start(&self, _node: &str, _vmid: u32) -> Result<String, ProxmoxError> {
-        todo!("implemented in Task 16")
+    pub async fn vm_start(&self, node: &str, vmid: u32) -> Result<String, ProxmoxError> {
+        let url = format!(
+            "{}/api2/json/nodes/{}/qemu/{}/status/start",
+            self.base_url, node, vmid
+        );
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", &self.auth_header)
+            .send()
+            .await?;
+        self.handle_upid_response(resp).await
     }
 
-    pub async fn vm_stop(&self, _node: &str, _vmid: u32) -> Result<String, ProxmoxError> {
-        todo!("implemented in Task 16")
+    pub async fn vm_stop(&self, node: &str, vmid: u32) -> Result<String, ProxmoxError> {
+        let url = format!(
+            "{}/api2/json/nodes/{}/qemu/{}/status/stop",
+            self.base_url, node, vmid
+        );
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", &self.auth_header)
+            .send()
+            .await?;
+        self.handle_upid_response(resp).await
     }
 
-    pub async fn vm_reboot(&self, _node: &str, _vmid: u32) -> Result<String, ProxmoxError> {
-        todo!("implemented in Task 16")
+    pub async fn vm_reboot(&self, node: &str, vmid: u32) -> Result<String, ProxmoxError> {
+        let url = format!(
+            "{}/api2/json/nodes/{}/qemu/{}/status/reboot",
+            self.base_url, node, vmid
+        );
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", &self.auth_header)
+            .send()
+            .await?;
+        self.handle_upid_response(resp).await
     }
 
-    pub async fn lxc_start(&self, _node: &str, _vmid: u32) -> Result<String, ProxmoxError> {
-        todo!("implemented in Task 16")
+    pub async fn lxc_start(&self, node: &str, vmid: u32) -> Result<String, ProxmoxError> {
+        let url = format!(
+            "{}/api2/json/nodes/{}/lxc/{}/status/start",
+            self.base_url, node, vmid
+        );
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", &self.auth_header)
+            .send()
+            .await?;
+        self.handle_upid_response(resp).await
     }
 
-    pub async fn lxc_stop(&self, _node: &str, _vmid: u32) -> Result<String, ProxmoxError> {
-        todo!("implemented in Task 16")
+    pub async fn lxc_stop(&self, node: &str, vmid: u32) -> Result<String, ProxmoxError> {
+        let url = format!(
+            "{}/api2/json/nodes/{}/lxc/{}/status/stop",
+            self.base_url, node, vmid
+        );
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", &self.auth_header)
+            .send()
+            .await?;
+        self.handle_upid_response(resp).await
+    }
+
+    pub async fn lxc_reboot(&self, node: &str, vmid: u32) -> Result<String, ProxmoxError> {
+        let url = format!(
+            "{}/api2/json/nodes/{}/lxc/{}/status/reboot",
+            self.base_url, node, vmid
+        );
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", &self.auth_header)
+            .send()
+            .await?;
+        self.handle_upid_response(resp).await
+    }
+
+    async fn handle_upid_response(&self, resp: reqwest::Response) -> Result<String, ProxmoxError> {
+        match resp.status() {
+            reqwest::StatusCode::OK => {
+                let body: serde_json::Value = resp.json().await?;
+                let upid = body
+                    .get("data")
+                    .and_then(|d| d.as_str())
+                    .ok_or_else(|| ProxmoxError::Api("Missing UPID in response".into()))?;
+                Ok(upid.to_string())
+            }
+            reqwest::StatusCode::UNAUTHORIZED => Err(ProxmoxError::Unauthorized),
+            reqwest::StatusCode::FORBIDDEN => Err(ProxmoxError::Forbidden),
+            _ => Err(ProxmoxError::Api(format!("HTTP {}", resp.status()))),
+        }
     }
 
     pub async fn check_task_status(&self, node: &str, upid: &str) -> Result<TaskStatus, ProxmoxError> {
