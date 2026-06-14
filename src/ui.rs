@@ -1,7 +1,8 @@
 use ratatui::{
-    layout::{Constraint, Layout, Margin, Rect},
+    layout::{Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, TableState},
+    text::{Line, Span, Text},
+    widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, TableState, Wrap},
     Frame,
 };
 
@@ -18,13 +19,44 @@ pub fn render(frame: &mut Frame, app: &App) {
 }
 
 fn render_help(frame: &mut Frame, _app: &App) {
-    let popup_area = centered_rect(60, 25, frame.area());
-    frame.render_widget(Clear, popup_area);
-    frame.render_widget(
-        Paragraph::new("Help\n\nq: quit\n?: help\n/: filter\n↑↓: scroll\nEnter: details\ns: start\nS: stop\nr: reboot")
-            .block(Block::default().borders(Borders::ALL).title("Help")),
-        popup_area.inner(Margin::new(1, 1)),
+    let area = centered_rect(50, 70, frame.area());
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Keyboard Shortcuts");
+
+    let shortcuts = vec![
+        ("q", "Quit metron"),
+        ("?", "Show this help"),
+        ("/", "Filter resources"),
+        ("↑/↓", "Navigate resources"),
+        ("Enter", "View resource details"),
+        ("s", "Start VM/CT"),
+        ("S", "Stop VM/CT (confirm)"),
+        ("r", "Reboot VM/CT (confirm)"),
+        ("Esc", "Close modal / Cancel"),
+    ];
+
+    let text = Text::from(
+        shortcuts
+            .into_iter()
+            .map(|(key, desc)| {
+                Line::from(vec![
+                    Span::styled(
+                        format!("{:<10}", key),
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw(desc),
+                ])
+            })
+            .collect::<Vec<_>>(),
     );
+
+    let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
+
+    frame.render_widget(Clear, area);
+    frame.render_widget(paragraph, area);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
