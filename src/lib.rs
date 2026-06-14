@@ -12,10 +12,11 @@ use crossterm::event::{Event, KeyCode};
 use futures::StreamExt;
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::config::Config;
 use crate::event::AppEvent;
 use crate::tui::Tui;
 
-pub async fn run() -> Result<()> {
+pub async fn run(_config: Config) -> Result<()> {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
 
     let mut tui = Tui::new()?;
