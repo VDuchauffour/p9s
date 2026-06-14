@@ -102,13 +102,19 @@ pub fn render_list(frame: &mut Frame, app: &App, theme: &Theme) {
                     format!(" {} ", view_label(&app.view)),
                     theme.accent_bold(),
                 ))
-                .title_alignment(ratatui::layout::Alignment::Center),
+                .title_alignment(ratatui::layout::Alignment::Center)
+                .padding(ratatui::widgets::Padding::new(1, 1, 0, 0)),
         )
         .row_highlight_style(if no_color {
             Style::default().add_modifier(Modifier::REVERSED)
         } else {
             Style::default().fg(Color::Black).bg(theme.accent)
         });
+
+    let table_area = table_area.inner(ratatui::layout::Margin {
+        vertical: 1,
+        horizontal: 0,
+    });
 
     frame.render_stateful_widget(table, table_area, &mut table_state);
 
