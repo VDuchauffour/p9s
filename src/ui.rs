@@ -302,6 +302,38 @@ fn render_header_info(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
         .fg(Color::White)
         .add_modifier(Modifier::BOLD);
 
+    // Compute cluster-wide CPU and RAM from node resources
+    let nodes: Vec<_> = app
+        .resources
+        .iter()
+        .filter(|r| r.r#type == "node")
+        .collect();
+    let (cpu_pct, ram_pct) = if !nodes.is_empty() {
+        let total_cpu_weight: f64 = nodes.iter().filter_map(|n| n.maxcpu).sum();
+        let weighted_cpu: f64 = nodes
+            .iter()
+            .filter_map(|n| n.cpu.zip(n.maxcpu).map(|(c, m)| c * m))
+            .sum();
+        let cpu_pct = if total_cpu_weight > 0.0 {
+            format!("{:}%", (weighted_cpu / total_cpu_weight * 100.0).round())
+        } else {
+            "n/a".to_string()
+        };
+        let total_mem: u64 = nodes.iter().filter_map(|n| n.mem).sum();
+        let total_maxmem: u64 = nodes.iter().filter_map(|n| n.maxmem).sum();
+        let ram_pct = if total_maxmem > 0 {
+            format!(
+                "{:}%",
+                (total_mem as f64 / total_maxmem as f64 * 100.0).round()
+            )
+        } else {
+            "n/a".to_string()
+        };
+        (cpu_pct, ram_pct)
+    } else {
+        ("n/a".to_string(), "n/a".to_string())
+    };
+
     let fields: &[(&str, String)] = &[
         ("Host:", host.to_string()),
         ("Cluster:", "Proxmox VE".to_string()),
@@ -315,6 +347,8 @@ fn render_header_info(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
                 app.proxmox_version.clone()
             },
         ),
+        ("CPU:", cpu_pct),
+        ("RAM:", ram_pct),
     ];
 
     let label_pad = fields.iter().map(|(l, _)| l.len()).max().unwrap_or(0) + 1;
