@@ -25,13 +25,37 @@ impl App {
             return;
         }
 
+        // Handle pending 'g' from a previous keypress (for 'gg' → go to top)
+        if self.pending_g {
+            self.pending_g = false;
+            match key.code {
+                KeyCode::Char('g') => {
+                    self.select_first();
+                    return;
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.select_prev();
+                    return;
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.select_next();
+                    return;
+                }
+                _ => {}
+            }
+        }
+
         match key.code {
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('?') => self.modal = Some(Modal::Help),
             KeyCode::Char('/') => self.modal = Some(Modal::Filter),
             KeyCode::Char(':') => self.modal = Some(Modal::Command),
-            KeyCode::Up => self.select_prev(),
-            KeyCode::Down => self.select_next(),
+            KeyCode::Char('g') => {
+                self.pending_g = true;
+            }
+            KeyCode::Char('G') => self.select_last(),
+            KeyCode::Up | KeyCode::Char('k') => self.select_prev(),
+            KeyCode::Down | KeyCode::Char('j') => self.select_next(),
             KeyCode::Enter if self.current_resource().is_some() => {
                 self.sparkline_data.clear();
                 self.modal = Some(Modal::Details);
@@ -77,6 +101,16 @@ impl App {
             && self.selected_index < self.display_resources.len() - 1
         {
             self.selected_index += 1;
+        }
+    }
+
+    pub fn select_first(&mut self) {
+        self.selected_index = 0;
+    }
+
+    pub fn select_last(&mut self) {
+        if !self.display_resources.is_empty() {
+            self.selected_index = self.display_resources.len() - 1;
         }
     }
 
