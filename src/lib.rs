@@ -14,7 +14,7 @@ use futures::StreamExt;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::app::App;
-use crate::client::ProxmoxClient;
+use crate::client::{ProxmoxClient, TaskStatus};
 use crate::config::Config;
 use crate::event::AppEvent;
 use crate::tui::Tui;
@@ -25,8 +25,7 @@ pub async fn run(config: Config) -> Result<()> {
     let mut tui = Tui::new()?;
     let mut app = App::new(config)?;
 
-    let client_arc = app.client.take().map(Arc::new);
-    if let Some(ref client) = client_arc {
+    if let Some(ref client) = app.client {
         spawn_polling_task(tx.clone(), client.clone(), app.config.refresh_interval);
     }
 
@@ -60,7 +59,49 @@ pub async fn run(config: Config) -> Result<()> {
                         app.connected = false;
                         app.status_message = Some(err);
                     }
-                    _ => {}
+                    AppEvent::LifecycleComplete(upid) => {
+                        if let Some(done_upid) = upid.strip_prefix("DONE:") {
+                            app.complete_upid(done_upid);
+                        } else {
+                            app.pending_upids.push(upid.clone());
+                            if app.pending_upids.len() <= 5 {
+                                if let Some(ref client) = app.client {
+                                    let client = Arc::clone(client);
+                                    let tx = tx.clone();
+                                    let node = app.current_resource()
+                                        .and_then(|r| r.node.clone())
+                                        .unwrap_or_default();
+                                    tokio::spawn(async move {
+                                        let mut interval = tokio::time::interval(Duration::from_secs(2));
+                                        loop {
+                                            interval.tick().await;
+                                            match client.check_task_status(&node, &upid).await {
+                                                Ok(TaskStatus::Completed) => {
+                                                    let _ = tx.send(AppEvent::LifecycleComplete(format!("DONE:{}", upid)));
+                                                    break;
+                                                }
+                                                Ok(TaskStatus::Error) => {
+                                                    let _ = tx.send(AppEvent::ApiError(format!("Task {} failed", upid)));
+                                                    break;
+                                                }
+                                                Ok(TaskStatus::Running) => {
+                                                    // Continue polling
+                                                }
+                                                Ok(TaskStatus::Unknown(s)) => {
+                                                    let _ = tx.send(AppEvent::ApiError(format!("Unknown task status: {}", s)));
+                                                    break;
+                                                }
+                                                Err(e) => {
+                                                    let _ = tx.send(AppEvent::ApiError(format!("Task poll error: {}", e)));
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
                 }
             }
             _ = tokio::signal::ctrl_c() => {
