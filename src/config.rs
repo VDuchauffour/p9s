@@ -4,8 +4,25 @@ use std::path::PathBuf;
 use clap::Parser;
 use serde::Deserialize;
 
+use clap::builder::{
+    Styles,
+    styling::{AnsiColor, Effects},
+};
+
+pub fn cargo_styles() -> Styles {
+    Styles::styled()
+        .header(AnsiColor::Green.on_default().effects(Effects::BOLD))
+        .usage(AnsiColor::Green.on_default().effects(Effects::BOLD))
+        .literal(AnsiColor::Cyan.on_default().effects(Effects::BOLD))
+        .placeholder(AnsiColor::Cyan.on_default())
+        .error(AnsiColor::Red.on_default().effects(Effects::BOLD))
+        .valid(AnsiColor::Cyan.on_default().effects(Effects::BOLD))
+        .invalid(AnsiColor::Yellow.on_default().effects(Effects::BOLD))
+}
+
+
 #[derive(Debug, Deserialize, Parser)]
-#[command(name = "metron", about = "A k9s-like terminal UI for Proxmox VE")]
+#[command(name = "metron", about = "A k9s-like terminal UI for Proxmox VE", styles = cargo_styles())]
 pub struct Config {
     #[arg(long, help = "Proxmox host URL")]
     #[serde(default)]
