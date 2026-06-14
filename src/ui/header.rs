@@ -140,7 +140,7 @@ fn render_header_keys(frame: &mut Frame, area: Rect, theme: &Theme) {
 
     const ROWS: usize = 6;
 
-    let global_key_pad = keys.iter().map(|(k, _)| k.len()).max().unwrap_or(0) + 1;
+    let _global_key_pad = keys.iter().map(|(k, _)| k.len()).max().unwrap_or(0) + 1;
 
     let mut col_key_pad: Vec<usize> = Vec::new();
     let mut col_width: Vec<usize> = Vec::new();
@@ -186,15 +186,15 @@ fn render_header_keys(frame: &mut Frame, area: Rect, theme: &Theme) {
 
     for row in 0..ROWS {
         let mut spans: Vec<Span> = Vec::new();
-        for col in 0..cols {
+        for (col, (kp, cw)) in col_key_pad.iter().zip(col_width.iter()).enumerate() {
             let idx = col * ROWS + row;
             if idx < keys.len() {
-                let kp = col_key_pad.get(col).copied().unwrap_or(global_key_pad);
+                let kp = *kp;
+                let cw = *cw;
                 spans.push(Span::styled(format!("{:<kp$}", keys[idx].0), key_style));
                 spans.push(Span::styled(keys[idx].1.to_string(), label_style));
                 if col < cols - 1 {
                     let content_len = kp + keys[idx].1.len();
-                    let cw = col_width[col];
                     spans.push(Span::raw(" ".repeat(cw.saturating_sub(content_len))));
                 }
             }
