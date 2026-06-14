@@ -153,7 +153,9 @@ no_color: true
             ..Default::default()
         };
 
-        let cfg = args.load_with_env(|_| Ok("env-token-123".to_string())).unwrap();
+        let cfg = args
+            .load_with_env(|_| Ok("env-token-123".to_string()))
+            .unwrap();
         assert_eq!(cfg.token, Some("env-token-123".to_string()));
     }
 
