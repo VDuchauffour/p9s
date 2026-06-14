@@ -64,14 +64,10 @@ pub fn render_list(frame: &mut Frame, app: &App, theme: &Theme) {
         .display_resources
         .iter()
         .map(|r| {
-            let status_style = if no_color {
+            let accent_style = if no_color {
                 Style::default()
             } else {
-                match r.status.as_str() {
-                    "running" | "online" => theme.status_running(),
-                    "stopped" => theme.status_stopped(),
-                    _ => theme.status_warning(),
-                }
+                Style::default().fg(theme.accent)
             };
 
             let cpu_str = r
@@ -82,12 +78,12 @@ pub fn render_list(frame: &mut Frame, app: &App, theme: &Theme) {
             let disk_str = format_disk(r.disk, r.maxdisk);
 
             Row::new(vec![
-                Cell::from(r.name.clone()),
-                Cell::from(r.node.clone().unwrap_or_default()),
-                Cell::from(r.status.clone()).style(status_style),
-                Cell::from(cpu_str),
-                Cell::from(ram_str),
-                Cell::from(disk_str),
+                Cell::from(r.name.clone()).style(accent_style),
+                Cell::from(r.node.clone().unwrap_or_default()).style(accent_style),
+                Cell::from(r.status.clone()).style(accent_style),
+                Cell::from(cpu_str).style(accent_style),
+                Cell::from(ram_str).style(accent_style),
+                Cell::from(disk_str).style(accent_style),
             ])
         })
         .collect();
@@ -110,7 +106,7 @@ pub fn render_list(frame: &mut Frame, app: &App, theme: &Theme) {
         .row_highlight_style(if no_color {
             Style::default().add_modifier(Modifier::REVERSED)
         } else {
-            theme.row_highlight()
+            Style::default().fg(Color::Black).bg(theme.accent)
         });
 
     frame.render_stateful_widget(table, table_area, &mut table_state);
