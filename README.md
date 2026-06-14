@@ -23,20 +23,6 @@ cargo install p9s
 p9s --host https://pve.local --token-id root@pam!p9s --token abc123 --insecure
 ```
 
-## Key Bindings
-
-| Key            | Action                 |
-| -------------- | ---------------------- |
-| `q` / `Ctrl+C` | Quit                   |
-| `?`            | Help                   |
-| `/`            | Filter                 |
-| `↑`/`↓`        | Navigate               |
-| `Enter`        | View details           |
-| `s`            | Start VM/CT            |
-| `S`            | Stop VM/CT (confirm)   |
-| `r`            | Reboot VM/CT (confirm) |
-| `Esc`          | Close modal            |
-
 ## Configuration
 
 `~/.config/p9s/config.yaml` — CLI flags override file values:
@@ -53,14 +39,20 @@ no_color: false
 ### CLI Flags
 
 ```
---host          Proxmox host URL
---token-id      API token ID (e.g. root@pam!p9s)
---token          API token secret
---config         Path to config file
---filter         Initial resource filter
---insecure       Accept self-signed certs
---refresh-interval  Seconds between polls (default: 5)
---no-color       Disable colors
+Usage: p9s [OPTIONS]
+
+Options:
+      --host <HOST>                          Proxmox host URL
+      --token-id <TOKEN_ID>                  API token ID (e.g. root@pam!p9s)
+      --token <TOKEN>                        API token secret
+      --insecure                             Allow insecure HTTPS (self-signed certs)
+      --refresh-interval <REFRESH_INTERVAL>  Data refresh interval in seconds [default: 5]
+      --filter <FILTER>                      Initial resource filter
+      --no-color                             Disable colors
+      --config <CONFIG>                      Path to config file
+  -h, --help                                 Print help
+
+
 ```
 
 ### Environment
