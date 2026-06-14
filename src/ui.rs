@@ -278,8 +278,8 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
     let no_color = app.config.no_color;
 
     let [info_area, keys_area, logo_area] = Layout::horizontal([
-        Constraint::Length(34),
-        Constraint::Length(22),
+        Constraint::Length(64),
+        Constraint::Length(32),
         Constraint::Min(0),
     ])
     .areas(area);
@@ -327,40 +327,36 @@ fn render_header_info(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
     let label_style = theme.label();
 
     let host = app.config.host.as_deref().unwrap_or("n/a");
-    let user = app.config.token_id.as_deref().unwrap_or("n/a");
-    let filter = if app.filter.is_empty() {
-        "<none>".to_string()
+    let raw_user = if app.proxmox_user.is_empty() {
+        app.config.token_id.as_deref().unwrap_or("n/a")
     } else {
-        app.filter.clone()
+        app.proxmox_user.as_str()
     };
+    let user = raw_user.split('@').next().unwrap_or(raw_user);
 
-    let (conn_text, conn_color) = if app.connected {
-        ("Connected", theme.success)
-    } else {
-        ("Disconnected", theme.danger)
-    };
-    let conn_span = Span::styled(conn_text, Style::default().fg(conn_color));
-
+    let value_style = Style::default()
+        .fg(Color::White)
+        .add_modifier(Modifier::BOLD);
     let field = |label: &str, value: String| {
         Line::from(vec![
-            Span::styled(format!("{label:<11}"), label_style),
-            Span::raw(value),
+            Span::styled(format!("{label:<13}"), label_style),
+            Span::styled(value, value_style),
         ])
     };
 
-    let res_label = format!("{}:", view_label(&app.view));
-
     let lines = vec![
-        Line::from(vec![
-            Span::styled(format!("{:<11}", "Status:"), label_style),
-            conn_span,
-        ]),
         field("Host:", host.to_string()),
-        field("User:", user.to_string()),
         field("Cluster:", "Proxmox VE".to_string()),
-        field("Refresh:", format!("{}s", app.config.refresh_interval)),
-        field(&res_label, app.display_resources.len().to_string()),
-        field("Filter:", filter),
+        field("User:", user.to_string()),
+        field("P9S Rev:", env!("CARGO_PKG_VERSION").to_string()),
+        field(
+            "Proxmox Rev:",
+            if app.proxmox_version.is_empty() {
+                "n/a".to_string()
+            } else {
+                app.proxmox_version.clone()
+            },
+        ),
     ];
 
     frame.render_widget(Paragraph::new(lines), area);
@@ -368,11 +364,14 @@ fn render_header_info(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
 
 fn render_header_keys(frame: &mut Frame, area: Rect, theme: &Theme) {
     let key_style = theme.key_style();
+    let label_style = Style::default()
+        .fg(Color::White)
+        .add_modifier(Modifier::BOLD);
 
     let binding = |key: &'static str, label: &'static str| {
         Line::from(vec![
             Span::styled(format!("{key:<8}"), key_style),
-            Span::raw(label),
+            Span::styled(label, label_style),
         ])
     };
 
