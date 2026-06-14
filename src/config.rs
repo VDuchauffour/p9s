@@ -61,6 +61,13 @@ fn default_refresh_interval() -> u64 {
 
 impl Config {
     pub fn load(self) -> anyhow::Result<Config> {
+        self.load_with_env(|key| std::env::var(key))
+    }
+
+    fn load_with_env<E>(self, env_get: E) -> anyhow::Result<Config>
+    where
+        E: FnOnce(&str) -> Result<String, std::env::VarError>,
+    {
         let mut cfg = if let Some(path) = self.config.as_ref() {
             let contents = fs::read_to_string(path)?;
             serde_yaml::from_str(&contents)?
@@ -76,7 +83,6 @@ impl Config {
             Config::default()
         };
 
-        // CLI overrides file (CLI wins)
         if self.host.is_some() {
             cfg.host = self.host;
         }
@@ -90,9 +96,8 @@ impl Config {
         cfg.refresh_interval = self.refresh_interval;
         cfg.no_color = self.no_color;
 
-        // METRON_TOKEN env var fallback
         if cfg.token.is_none()
-            && let Ok(token) = std::env::var("METRON_TOKEN")
+            && let Ok(token) = env_get("METRON_TOKEN")
         {
             cfg.token = Some(token);
         }
@@ -143,21 +148,13 @@ no_color: true
 
     #[test]
     fn test_metron_token_env_fallback() {
-        unsafe {
-            std::env::set_var("METRON_TOKEN", "env-token-123");
-        }
-
         let args = Config {
             token: None,
             ..Default::default()
         };
 
-        let cfg = args.load().unwrap();
+        let cfg = args.load_with_env(|_| Ok("env-token-123".to_string())).unwrap();
         assert_eq!(cfg.token, Some("env-token-123".to_string()));
-
-        unsafe {
-            std::env::remove_var("METRON_TOKEN");
-        }
     }
 
     #[test]
