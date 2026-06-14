@@ -1,9 +1,9 @@
 use ratatui::{
-    Frame,
-    layout::{Constraint, Layout, Margin, Rect},
+    layout::{Alignment, Constraint, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Sparkline, Table, TableState, Wrap},
+    Frame,
 };
 
 use crate::app::{App, Modal};
@@ -33,7 +33,12 @@ fn render_help(frame: &mut Frame, _app: &App) {
         Paragraph::new(
             "Help\n\nq: quit\n?: help\n/: filter\n↑↓: scroll\nEnter: details\ns: start\nS: stop\nr: reboot",
         )
-        .block(Block::default().borders(Borders::ALL).title("Help")),
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Help")
+                .title_alignment(Alignment::Center),
+        ),
         popup_area.inner(Margin::new(1, 1)),
     );
 }
@@ -64,7 +69,10 @@ fn render_filter(frame: &mut Frame, app: &App) {
         height: 3,
     };
 
-    let block = Block::default().borders(Borders::ALL).title("Filter");
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Filter")
+        .title_alignment(Alignment::Center);
 
     let text = format!("Filter: {}", app.filter);
     let paragraph = Paragraph::new(text).block(block);
@@ -79,7 +87,12 @@ fn render_confirm(frame: &mut Frame, action: &ConfirmAction, _app: &App) {
         ConfirmAction::Reboot { node, vmid, .. } => format!("Reboot {} on {}? (y/n)", vmid, node),
     };
     frame.render_widget(
-        Paragraph::new(msg).block(Block::default().borders(Borders::ALL).title("Confirm")),
+        Paragraph::new(msg).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Confirm")
+                .title_alignment(Alignment::Center),
+        ),
         area,
     );
 }
@@ -89,7 +102,8 @@ fn render_details(frame: &mut Frame, app: &App) {
     let area = centered_rect(60, 70, frame.area());
     let block = Block::default()
         .borders(Borders::ALL)
-        .title("Resource Details");
+        .title("Resource Details")
+        .title_alignment(Alignment::Center);
 
     let inner = area.inner(Margin::new(1, 1));
     let chunks = Layout::vertical([Constraint::Min(8), Constraint::Length(6)]).split(inner);
@@ -110,7 +124,10 @@ fn render_details(frame: &mut Frame, app: &App) {
     frame.render_widget(block.clone(), area);
     frame.render_widget(paragraph, chunks[0]);
 
-    let sparkline_block = Block::default().borders(Borders::ALL).title("History");
+    let sparkline_block = Block::default()
+        .borders(Borders::ALL)
+        .title("History")
+        .title_alignment(Alignment::Center);
     let sparkline_inner = chunks[1].inner(Margin::new(1, 1));
     let sparkline_chunks = Layout::vertical([Constraint::Length(1), Constraint::Length(1)])
         .margin(1)
@@ -189,15 +206,178 @@ fn format_generic_details(r: &ClusterResource) -> String {
     format!("Name: {}\nType: {}\nStatus: {}", r.name, r.r#type, r.status)
 }
 
+const HEADER_HEIGHT: u16 = 7;
+
+const PROXMOX_ORANGE: Color = Color::Rgb(229, 112, 0);
+
+const LOGO_DARK: Color = Color::Rgb(214, 214, 214);
+
+const PROXMOX_PIXELS: [&str; 14] = [
+    "...ddd....ddd...",
+    "...dddd..dddd...",
+    "ooo.dddddddd.ooo",
+    ".ooo.dddddd.ooo.",
+    "..ooo.dddd.ooo..",
+    "...ooo.dd.ooo...",
+    "....ooo..ooo....",
+    "....ooo..ooo....",
+    "...ooo.dd.ooo...",
+    "..ooo.dddd.ooo..",
+    ".ooo.dddddd.ooo.",
+    "ooo.dddddddd.ooo",
+    "...dddd..dddd...",
+    "...ddd....ddd...",
+];
+
+fn render_header(frame: &mut Frame, app: &App, area: Rect) {
+    let no_color = app.config.no_color;
+
+    let [info_area, keys_area, logo_area] = Layout::horizontal([
+        Constraint::Length(34),
+        Constraint::Length(22),
+        Constraint::Min(0),
+    ])
+    .areas(area);
+
+    render_header_info(frame, app, info_area);
+    render_header_keys(frame, app, keys_area);
+
+    let pixel = |c: char| -> Option<Color> {
+        match c {
+            'o' => Some(if no_color {
+                Color::Reset
+            } else {
+                PROXMOX_ORANGE
+            }),
+            'd' => Some(if no_color { Color::Reset } else { LOGO_DARK }),
+            _ => None,
+        }
+    };
+
+    let logo_lines: Vec<Line> = PROXMOX_PIXELS
+        .chunks(2)
+        .map(|pair| {
+            let top: Vec<char> = pair[0].chars().collect();
+            let bottom: Vec<char> = pair[1].chars().collect();
+            let spans = (0..top.len())
+                .map(|x| {
+                    let t = pixel(top[x]);
+                    let b = pixel(*bottom.get(x).unwrap_or(&'.'));
+                    match (t, b) {
+                        (None, None) => Span::raw(" "),
+                        (Some(tc), None) => Span::styled("▀", Style::default().fg(tc)),
+                        (None, Some(bc)) => Span::styled("▄", Style::default().fg(bc)),
+                        (Some(_), Some(_)) if no_color => Span::raw("█"),
+                        (Some(tc), Some(bc)) => Span::styled("▀", Style::default().fg(tc).bg(bc)),
+                    }
+                })
+                .collect::<Vec<_>>();
+            Line::from(spans)
+        })
+        .collect();
+
+    frame.render_widget(
+        Paragraph::new(logo_lines).alignment(Alignment::Right),
+        logo_area,
+    );
+}
+
+fn render_header_info(frame: &mut Frame, app: &App, area: Rect) {
+    let no_color = app.config.no_color;
+
+    let label_style = if no_color {
+        Style::default()
+    } else {
+        Style::default().fg(Color::Cyan)
+    };
+
+    let host = app.config.host.as_deref().unwrap_or("n/a");
+    let user = app.config.token_id.as_deref().unwrap_or("n/a");
+    let filter = if app.filter.is_empty() {
+        "<none>".to_string()
+    } else {
+        app.filter.clone()
+    };
+
+    let (conn_text, conn_color) = if app.connected {
+        ("Connected", Color::Green)
+    } else {
+        ("Disconnected", Color::Red)
+    };
+    let conn_span = if no_color {
+        Span::raw(conn_text)
+    } else {
+        Span::styled(conn_text, Style::default().fg(conn_color))
+    };
+
+    let field = |label: &'static str, value: String| {
+        Line::from(vec![
+            Span::styled(format!("{label:<11}"), label_style),
+            Span::raw(value),
+        ])
+    };
+
+    let lines = vec![
+        Line::from(vec![
+            Span::styled(format!("{:<11}", "Status:"), label_style),
+            conn_span,
+        ]),
+        field("Host:", host.to_string()),
+        field("User:", user.to_string()),
+        field("Cluster:", "Proxmox VE".to_string()),
+        field("Refresh:", format!("{}s", app.config.refresh_interval)),
+        field("Resources:", app.display_resources.len().to_string()),
+        field("Filter:", filter),
+    ];
+
+    frame.render_widget(Paragraph::new(lines), area);
+}
+
+fn render_header_keys(frame: &mut Frame, app: &App, area: Rect) {
+    let no_color = app.config.no_color;
+
+    let key_style = if no_color {
+        Style::default().add_modifier(Modifier::BOLD)
+    } else {
+        Style::default()
+            .fg(Color::LightBlue)
+            .add_modifier(Modifier::BOLD)
+    };
+
+    let binding = |key: &'static str, label: &'static str| {
+        Line::from(vec![
+            Span::styled(format!("{key:<8}"), key_style),
+            Span::raw(label),
+        ])
+    };
+
+    let lines = vec![
+        binding("<?>", "Help"),
+        binding("</>", "Filter"),
+        binding("<enter>", "Details"),
+        binding("<s>", "Start"),
+        binding("<S>", "Stop"),
+        binding("<r>", "Reboot"),
+        binding("<q>", "Quit"),
+    ];
+
+    frame.render_widget(Paragraph::new(lines), area);
+}
+
 fn render_list(frame: &mut Frame, app: &App) {
     let no_color = app.config.no_color;
     let area = frame.area();
-    let main_area = Rect {
+    let body_area = Rect {
         x: area.x,
         y: area.y,
         width: area.width,
         height: area.height.saturating_sub(1),
     };
+
+    let [header_area, main_area] =
+        Layout::vertical([Constraint::Length(HEADER_HEIGHT), Constraint::Min(0)]).areas(body_area);
+
+    render_header(frame, app, header_area);
 
     let widths = [
         Constraint::Min(8),  // Type
@@ -258,7 +438,12 @@ fn render_list(frame: &mut Frame, app: &App) {
 
     let table = Table::new(rows, widths)
         .header(header)
-        .block(Block::default().borders(Borders::ALL).title("Resources"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Resources")
+                .title_alignment(Alignment::Center),
+        )
         .row_highlight_style(if no_color {
             Style::default().add_modifier(Modifier::REVERSED)
         } else {
