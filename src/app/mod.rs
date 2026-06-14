@@ -29,6 +29,7 @@ pub struct App {
     pub proxmox_version: String,
     pub proxmox_user: String,
     pub quit: bool,
+    pub pending_g: bool,
 }
 
 impl App {
@@ -64,6 +65,7 @@ impl App {
             proxmox_version: String::new(),
             proxmox_user: String::new(),
             quit: false,
+            pending_g: false,
         };
         app.update_display_resources();
         Ok(app)
@@ -375,6 +377,98 @@ mod tests {
         assert_eq!(app.selected_index, 0);
         app.handle_key(KeyEvent::from(KeyCode::Up), &tx);
         assert_eq!(app.selected_index, 0);
+    }
+
+    #[test]
+    fn test_vim_keys_adjust_index() {
+        let config = mock_config();
+        let mut app = App::new(config).unwrap();
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
+        app.set_resources(vec![
+            mock_resource("a", "qemu", Some("pve1")),
+            mock_resource("b", "qemu", Some("pve1")),
+            mock_resource("c", "qemu", Some("pve1")),
+        ]);
+        assert_eq!(app.selected_index, 0);
+        app.handle_key(KeyEvent::from(KeyCode::Char('j')), &tx);
+        assert_eq!(app.selected_index, 1);
+        app.handle_key(KeyEvent::from(KeyCode::Char('j')), &tx);
+        assert_eq!(app.selected_index, 2);
+        app.handle_key(KeyEvent::from(KeyCode::Char('j')), &tx);
+        assert_eq!(app.selected_index, 2);
+        app.handle_key(KeyEvent::from(KeyCode::Char('k')), &tx);
+        assert_eq!(app.selected_index, 1);
+        app.handle_key(KeyEvent::from(KeyCode::Char('k')), &tx);
+        assert_eq!(app.selected_index, 0);
+        app.handle_key(KeyEvent::from(KeyCode::Char('k')), &tx);
+        assert_eq!(app.selected_index, 0);
+    }
+
+    #[test]
+    fn test_gg_goes_to_first() {
+        let config = mock_config();
+        let mut app = App::new(config).unwrap();
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
+        app.set_resources(vec![
+            mock_resource("a", "qemu", Some("pve1")),
+            mock_resource("b", "qemu", Some("pve1")),
+            mock_resource("c", "qemu", Some("pve1")),
+        ]);
+        app.selected_index = 2;
+        app.handle_key(KeyEvent::from(KeyCode::Char('g')), &tx);
+        assert!(app.pending_g);
+        app.handle_key(KeyEvent::from(KeyCode::Char('g')), &tx);
+        assert!(!app.pending_g);
+        assert_eq!(app.selected_index, 0);
+    }
+
+    #[test]
+    fn test_g_upper_goes_to_last() {
+        let config = mock_config();
+        let mut app = App::new(config).unwrap();
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
+        app.set_resources(vec![
+            mock_resource("a", "qemu", Some("pve1")),
+            mock_resource("b", "qemu", Some("pve1")),
+            mock_resource("c", "qemu", Some("pve1")),
+        ]);
+        assert_eq!(app.selected_index, 0);
+        app.handle_key(KeyEvent::from(KeyCode::Char('G')), &tx);
+        assert_eq!(app.selected_index, 2);
+    }
+
+    #[test]
+    fn test_pending_g_cleared_by_other_keys() {
+        let config = mock_config();
+        let mut app = App::new(config).unwrap();
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
+        app.set_resources(vec![
+            mock_resource("a", "qemu", Some("pve1")),
+            mock_resource("b", "qemu", Some("pve1")),
+            mock_resource("c", "qemu", Some("pve1")),
+        ]);
+        app.selected_index = 1;
+        app.handle_key(KeyEvent::from(KeyCode::Char('g')), &tx);
+        assert!(app.pending_g);
+        app.handle_key(KeyEvent::from(KeyCode::Down), &tx);
+        assert!(!app.pending_g);
+        assert_eq!(app.selected_index, 2);
+    }
+
+    #[test]
+    fn test_gg_then_navigation_keys() {
+        let config = mock_config();
+        let mut app = App::new(config).unwrap();
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
+        app.set_resources(vec![
+            mock_resource("a", "qemu", Some("pve1")),
+            mock_resource("b", "qemu", Some("pve1")),
+        ]);
+        app.selected_index = 1;
+        app.handle_key(KeyEvent::from(KeyCode::Char('g')), &tx);
+        app.handle_key(KeyEvent::from(KeyCode::Char('j')), &tx);
+        assert!(!app.pending_g);
+        assert_eq!(app.selected_index, 1);
     }
 
     #[test]

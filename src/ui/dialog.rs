@@ -18,7 +18,7 @@ pub fn render_help(frame: &mut Frame, theme: &Theme) {
     frame.render_widget(Clear, popup_area);
     frame.render_widget(
         Paragraph::new(
-            "Help\n\nq: quit\n?: help\n/: filter\n:: command (switch view)\n↑↓: scroll\nEnter: details\ns: start\nS: stop\nr: reboot",
+            "Help\n\nq: quit\n?: help\n/: filter\n:: command (switch view)\n↑↓/jk: scroll\ngg: go to top\nG: go to bottom\nEnter: details\ns: start\nS: stop\nr: reboot",
         )
         .block(
             Block::default()

@@ -132,6 +132,8 @@ fn render_header_keys(frame: &mut Frame, area: Rect, theme: &Theme) {
         ("</>", "Filter"),
         ("<:>", "Command"),
         ("<enter>", "Details"),
+        ("<↑↓/jk>", "Scroll"),
+        ("<gg/G>", "Top/Bottom"),
         ("<s>", "Start"),
         ("<S>", "Stop"),
         ("<r>", "Reboot"),
