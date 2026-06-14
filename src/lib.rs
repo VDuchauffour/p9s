@@ -8,18 +8,20 @@ pub mod ui;
 use std::time::Duration;
 
 use anyhow::Result;
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::Event;
 use futures::StreamExt;
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::app::App;
 use crate::config::Config;
 use crate::event::AppEvent;
 use crate::tui::Tui;
 
-pub async fn run(_config: Config) -> Result<()> {
+pub async fn run(config: Config) -> Result<()> {
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
 
     let mut tui = Tui::new()?;
+    let mut app = App::new(config)?;
 
     spawn_event_task(tx.clone());
     spawn_tick_task(tx.clone());
@@ -31,11 +33,12 @@ pub async fn run(_config: Config) -> Result<()> {
                 match event {
                     AppEvent::Tick => {
                         tui.terminal.draw(|frame| {
-                            ui::render(frame);
+                            ui::render(frame, &app);
                         })?;
                     }
                     AppEvent::Key(key) => {
-                        if key.code == KeyCode::Char('q') {
+                        app.handle_key(key);
+                        if app.quit {
                             break;
                         }
                     }
