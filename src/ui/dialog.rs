@@ -14,13 +14,23 @@ use crate::theme::Theme;
 
 /// Render a confirmation dialog for stop/reboot actions.
 pub fn render_confirm(frame: &mut Frame, action: &ConfirmAction, theme: &Theme) {
-    let area = frame.area();
     let msg = match action {
         ConfirmAction::Stop { node, vmid, .. } => format!("Stop {} on {}? (y/n)", vmid, node),
         ConfirmAction::Reboot { node, vmid, .. } => format!("Reboot {} on {}? (y/n)", vmid, node),
     };
+    let btn = "[ Confirm ]";
+    let max_w = msg.len().max(btn.len()) as u16 + 4;
+    let h: u16 = 6;
+    let area = command_error_rect(max_w, h, frame.area());
+    frame.render_widget(Clear, area);
+    let text = Text::from(vec![
+        Line::from(""),
+        Line::from(msg.clone()),
+        Line::from(""),
+        Line::from(Span::styled(btn, theme.accent_bg_bold())),
+    ]);
     frame.render_widget(
-        Paragraph::new(msg).block(
+        Paragraph::new(text).alignment(Alignment::Center).block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(theme.accent))
