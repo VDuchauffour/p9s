@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
+use crossterm::event::{KeyCode, KeyEvent};
+use tokio::sync::mpsc::UnboundedSender;
+
 use crate::client::{ClusterResource, ProxmoxClient};
 use crate::config::Config;
 use crate::event::{AppEvent, ConfirmAction, LifecycleAction};
-use crossterm::event::{KeyCode, KeyEvent};
-use tokio::sync::mpsc::UnboundedSender;
 
 #[derive(Debug, Clone)]
 pub enum Modal {
@@ -26,7 +27,15 @@ impl SparklineData {
             mem_history: Vec::with_capacity(60),
         }
     }
+}
 
+impl Default for SparklineData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SparklineData {
     pub fn push_cpu(&mut self, value: u64) {
         if self.cpu_history.len() >= 60 {
             self.cpu_history.remove(0);
@@ -172,41 +181,38 @@ impl App {
             KeyCode::Char('/') => self.modal = Some(Modal::Filter),
             KeyCode::Up => self.select_prev(),
             KeyCode::Down => self.select_next(),
-            KeyCode::Enter => {
-                if self.current_resource().is_some() {
-                    self.sparkline_data.clear();
-                    self.modal = Some(Modal::Details);
-                }
+            KeyCode::Enter if self.current_resource().is_some() => {
+                self.sparkline_data.clear();
+                self.modal = Some(Modal::Details);
             }
-            KeyCode::Char('s') => {
-                if let Some(r) = self.current_resource() {
-                    if let (Some(node), Some(vmid)) = (r.node.clone(), Self::extract_vmid(&r.id)) {
-                        let kind = r.r#type.clone();
-                        let _ = tx.send(AppEvent::LifecycleAction(LifecycleAction::Start {
-                            node,
-                            vmid,
-                            kind,
-                        }));
-                        self.status_message = Some(format!("Starting {}...", r.name));
-                    }
-                }
+            KeyCode::Char('s')
+                if let Some(r) = self.current_resource()
+                    && let (Some(node), Some(vmid)) =
+                        (r.node.clone(), Self::extract_vmid(&r.id)) =>
+            {
+                let kind = r.r#type.clone();
+                let _ = tx.send(AppEvent::LifecycleAction(LifecycleAction::Start {
+                    node,
+                    vmid,
+                    kind,
+                }));
+                self.status_message = Some(format!("Starting {}...", r.name));
             }
-            KeyCode::Char('S') => {
-                if let Some(r) = self.current_resource() {
-                    if let (Some(node), Some(vmid)) = (r.node.clone(), Self::extract_vmid(&r.id)) {
-                        let kind = r.r#type.clone();
-                        self.modal = Some(Modal::Confirm(ConfirmAction::Stop { node, vmid, kind }));
-                    }
-                }
+            KeyCode::Char('S')
+                if let Some(r) = self.current_resource()
+                    && let (Some(node), Some(vmid)) =
+                        (r.node.clone(), Self::extract_vmid(&r.id)) =>
+            {
+                let kind = r.r#type.clone();
+                self.modal = Some(Modal::Confirm(ConfirmAction::Stop { node, vmid, kind }));
             }
-            KeyCode::Char('r') => {
-                if let Some(r) = self.current_resource() {
-                    if let (Some(node), Some(vmid)) = (r.node.clone(), Self::extract_vmid(&r.id)) {
-                        let kind = r.r#type.clone();
-                        self.modal =
-                            Some(Modal::Confirm(ConfirmAction::Reboot { node, vmid, kind }));
-                    }
-                }
+            KeyCode::Char('r')
+                if let Some(r) = self.current_resource()
+                    && let (Some(node), Some(vmid)) =
+                        (r.node.clone(), Self::extract_vmid(&r.id)) =>
+            {
+                let kind = r.r#type.clone();
+                self.modal = Some(Modal::Confirm(ConfirmAction::Reboot { node, vmid, kind }));
             }
             _ => {}
         }
@@ -357,10 +363,11 @@ mod tests {
         ]);
         app.set_filter("web".to_string());
         assert_eq!(app.filtered_resources().len(), 2);
-        assert!(app
-            .filtered_resources()
-            .iter()
-            .all(|r| r.name.starts_with("web")));
+        assert!(
+            app.filtered_resources()
+                .iter()
+                .all(|r| r.name.starts_with("web"))
+        );
     }
 
     #[test]
@@ -855,10 +862,11 @@ mod tests {
         app.set_filter("web".to_string());
         assert_eq!(app.filter, "web");
         assert_eq!(app.filtered_resources().len(), 2);
-        assert!(app
-            .filtered_resources()
-            .iter()
-            .all(|r| r.name.starts_with("web")));
+        assert!(
+            app.filtered_resources()
+                .iter()
+                .all(|r| r.name.starts_with("web"))
+        );
 
         app.set_filter("".to_string());
         assert!(app.filter.is_empty());
