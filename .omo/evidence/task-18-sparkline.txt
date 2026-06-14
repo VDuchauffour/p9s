@@ -1,0 +1,44 @@
+Task: Sparkline CPU/RAM charts in detail view
+Commit: 6131b03 feat(ui): sparkline CPU/RAM charts in detail view with text fallback
+
+Evidence — Sparkline rendering from src/ui.rs render_details:
+
+    let sparkline_block = Block::default().borders(Borders::ALL).title("History");
+    let sparkline_inner = chunks[1].inner(Margin::new(1, 1));
+    let sparkline_chunks = Layout::vertical([Constraint::Length(1), Constraint::Length(1)])
+        .margin(1)
+        .split(sparkline_inner);
+
+    if !app.sparkline_data.cpu_history.is_empty() {
+        let cpu_sparkline = Sparkline::default()
+            .data(&app.sparkline_data.cpu_history)
+            .style(if no_color {
+                Style::default()
+            } else {
+                Style::default().fg(Color::Yellow)
+            });
+        frame.render_widget(cpu_sparkline, sparkline_chunks[0]);
+        let mem_sparkline = Sparkline::default()
+            .data(&app.sparkline_data.mem_history)
+            .style(if no_color {
+                Style::default()
+            } else {
+                Style::default().fg(Color::Cyan)
+            });
+        frame.render_widget(mem_sparkline, sparkline_chunks[1]);
+    } else {
+        let fallback =
+            Paragraph::new("No historical data available.\nReal-time values shown above.");
+        frame.render_widget(fallback, sparkline_inner);
+    }
+    frame.render_widget(sparkline_block, chunks[1]);
+
+Data structure (src/app.rs):
+    pub struct SparklineData {
+        pub cpu_history: Vec<u64>,
+        pub mem_history: Vec<u64>,
+    }
+
+Methods: push_cpu, push_mem (ring buffer of 60 samples), clear.
+Colors: CPU = Yellow, Memory = Cyan (--no-color disables colors).
+Fallback text shown when no data available.

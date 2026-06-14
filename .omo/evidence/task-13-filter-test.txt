@@ -1,0 +1,29 @@
+Task: Filter logic unit tests passing
+Commits: 7b669ff feat(state): App struct with resource list, selection, filter, modals
+         f2128f4 test(state): unit tests for filter logic and state transitions
+
+Evidence — cargo test --lib app::tests::test_filter_* output:
+
+running 9 tests
+test app::tests::test_empty_filter_returns_all ... ok
+test app::tests::test_filter_case_insensitive ... ok
+test app::tests::test_filter_no_match_returns_empty ... ok
+test app::tests::test_filter_subset_by_name ... ok
+test app::tests::test_filter_subset_by_node ... ok
+test app::tests::test_filter_subset_by_type ... ok
+test app::tests::test_filter_vm_matches_type_qemu_and_name_vm_100 ... ok
+test app::tests::test_selected_bounds_after_filter ... ok
+test app::tests::test_filter_state_transition ... ok
+
+test result: ok. 9 passed; 0 failed
+
+Full test coverage:
+- Empty filter returns all resources
+- Filter by name (web -> web1, web2)
+- Filter by type (lxc -> only containers)
+- Filter by node (pve2 -> only pve2 resources)
+- Case-insensitive matching (WebServer matches 'web', PVE1 matches 'pve')
+- Selected index bounds after filter (index reset to 0 if filtered list shrinks)
+- No match returns empty list
+- VM filter matches qemu type AND vm name pattern
+- State transition: filter -> unfilter restores full list

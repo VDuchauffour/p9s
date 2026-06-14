@@ -1,0 +1,35 @@
+Task: App filter and state transition tests
+Commits: f2128f4 test(state): unit tests for filter logic and state transitions
+
+Evidence — cargo test --lib app filter/state tests output:
+
+running 14 tests (filter and state subset)
+test app::tests::test_empty_filter_returns_all ... ok
+test app::tests::test_filter_backspace ... ok
+test app::tests::test_filter_case_insensitive ... ok
+test app::tests::test_filter_input_capture ... ok
+test app::tests::test_filter_modal_input ... ok
+test app::tests::test_filter_no_match_returns_empty ... ok
+test app::tests::test_filter_state_transition ... ok
+test app::tests::test_filter_subset_by_name ... ok
+test app::tests::test_filter_subset_by_node ... ok
+test app::tests::test app::tests::test_filter_subset_by_type ... ok
+test app::tests::test_filter_vm_matches_type_qemu_and_name_vm_100 ... ok
+test app::tests::test_selected_bounds_after_filter ... ok
+test app::tests::test_selected_resource_bounds ... ok
+test app::tests::test_selected_resource_none_when_empty ... ok
+
+test result: ok. 14 passed; 0 failed
+
+State management in App struct:
+- resources: full resource list from API
+- display_resources: filtered view (updated on filter change)
+- selected_index: tracks cursor, bounded to display_resources.len()
+- filter: live search string, case-insensitive
+
+Key invariants verified:
+- Empty filter == all resources
+- Filter by name, type, or node
+- Case-insensitive matching
+- Selected index clamped when list shrinks
+- No match returns empty display_resources

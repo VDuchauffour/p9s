@@ -1,0 +1,38 @@
+Task: Resource polling from API with mock test
+Commit: 5ba82c9 feat(data): poll cluster resources every 5 seconds
+
+Evidence — cargo test --lib client::tests::test_fetch_resources_mock output:
+
+running 1 test
+test client::tests::test_fetch_resources_mock ... ok
+
+test result: ok. 1 passed; 0 failed
+
+Test validates parsing of mock JSON response:
+- qemu/100: "win10" VM running with 4 vCPUs, 8GB RAM
+- lxc/200: "ubuntu" container stopped
+
+Polling implementation in src/lib.rs:
+
+fn spawn_polling_task(
+    tx: UnboundedSender<AppEvent>,
+    client: Arc<ProxmoxClient>,
+    interval_secs: u64,
+) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
+        loop {
+            interval.tick().await;
+            match client.fetch_resources().await {
+                Ok(resources) => {
+                    let _ = tx.send(AppEvent::ClusterSnapshot(resources));
+                }
+                Err(e) => {
+                    let _ = tx.send(AppEvent::ApiError(e.to_string()));
+                }
+            }
+        }
+    });
+}
+
+Default interval: 5 seconds. Configurable via --refresh-interval.

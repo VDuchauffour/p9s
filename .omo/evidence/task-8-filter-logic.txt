@@ -1,0 +1,46 @@
+Task: Resource filter logic tested and passing
+Commits: 7b669ff feat(state): App struct with resource list, selection, filter, modals
+         f2128f4 test(state): unit tests for filter logic and state transitions
+
+Evidence — cargo test --lib app filter tests output:
+
+running 10 tests (filter-related subset)
+test app::tests::test_empty_filter_returns_all ... ok
+test app::tests::test_filter_case_insensitive ... ok
+test app::tests::test_filter_no_match_returns_empty ... ok
+test app::tests::test_filter_subset_by_name ... ok
+test app::tests::test_filter_subset_by_node ... ok
+test app::tests::test_filter_subset_by_type ... ok
+test app::tests::test_filter_vm_matches_type_qemu_and_name_vm_100 ... ok
+test app::tests::test_selected_bounds_after_filter ... ok
+test app::tests::test_filter_state_transition ... ok
+test app::tests::test_filter_modal_input ... ok
+
+test result: ok. 10 passed; 0 failed
+
+Filter implementation (src/app.rs):
+    pub fn update_display_resources(&mut self) {
+        let f = self.filter.to_lowercase();
+        if f.is_empty() {
+            self.display_resources = self.resources.clone();
+        } else {
+            self.display_resources = self
+                .resources
+                .iter()
+                .filter(|r| {
+                    r.name.to_lowercase().contains(&f)
+                        || r.r#type.to_lowercase().contains(&f)
+                        || r.node
+                            .as_ref()
+                            .map(|n| n.to_lowercase().contains(&f))
+                            .unwrap_or(false)
+                })
+                .cloned()
+                .collect();
+        }
+        self.selected_index = self
+            .selected_index
+            .min(self.display_resources.len().saturating_sub(1));
+    }
+
+Filter criteria: name (case-insensitive), type, node. Empty filter returns all.

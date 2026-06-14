@@ -1,0 +1,36 @@
+Task: Keyboard action mapping verified by tests
+Commits: 9cf193c feat(input): keyboard action mapping for navigation and modals
+         d2adc23 test(modal): unit tests for dialog flow and action handlers
+
+Evidence — cargo test --lib app key action tests output:
+
+running 16 tests (key action subset)
+test app::tests::test_confirm_modal_keys ... ok
+test app::tests::test_confirm_yes ... ok
+test app::tests::test_confirm_no ... ok
+test app::tests::test_details_modal_close_keys ... ok
+test app::tests::test_filter_modal_input ... ok
+test app::tests::test_help_modal_close_keys ... ok
+test app::tests::test_key_arrows_adjust_index ... ok
+test app::tests::test_key_enter_noop_when_no_resource ... ok
+test app::tests::test_key_enter_opens_details_when_resource_selected ... ok
+test app::tests::test_key_q_sets_quit ... ok
+test app::tests::test_key_question_opens_help_modal ... ok
+test app::tests::test_key_r_opens_reboot_confirm ... ok
+test app::tests::test_key_s_sends_lifecycle_start ... ok
+test app::tests::test_key_slash_opens_filter_modal ... ok
+test app::tests::test_key_upper_s_opens_stop_confirm ... ok
+test app::tests::test_keyboard_dispatch_with_modal ... ok
+
+test result: ok. 16 passed; 0 failed
+
+Key mapping from src/app.rs handle_key:
+- 'q' -> quit = true
+- '?' -> Modal::Help
+- '/' -> Modal::Filter
+- Up/Down -> select_prev / select_next
+- Enter -> Modal::Details (if resource selected)
+- 's' -> LifecycleAction::Start (immediate)
+- 'S' -> Modal::Confirm(Stop) (requires confirmation)
+- 'r' -> Modal::Confirm(Reboot) (requires confirmation)
+- Esc -> close current modal / cancel filter

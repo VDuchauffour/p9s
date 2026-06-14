@@ -1,0 +1,29 @@
+Task: Keyboard shortcuts help overlay
+Commit: 8ce239c feat(ui): keyboard shortcuts help overlay
+
+Evidence — render_help from src/ui.rs:
+
+fn render_help(frame: &mut Frame, _app: &App) {
+    let popup_area = centered_rect(60, 25, frame.area());
+    frame.render_widget(Clear, popup_area);
+    frame.render_widget(
+        Paragraph::new(
+            "Help\n\nq: quit\n?: help\n/: filter\n↑↓: scroll\nEnter: details\ns: start\nS: stop\nr: reboot",
+        )
+        .block(Block::default().borders(Borders::ALL).title("Help")),
+        popup_area.inner(Margin::new(1, 1)),
+    );
+}
+
+Help text covers all keyboard shortcuts:
+- q: quit
+- ?: help
+- /: filter
+- ↑↓: scroll
+- Enter: details
+- s: start
+- S: stop
+- r: reboot
+
+Displayed as a centered popup (60% width, 25% height) with Clear widget behind it.
+Close with '?', Esc, or 'q' while modal is open.
