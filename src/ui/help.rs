@@ -1,6 +1,6 @@
 use ratatui::{
     Frame,
-    layout::{Alignment, Constraint, Layout, Margin, Rect},
+    layout::{Alignment, Constraint, Layout, Rect},
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
@@ -32,11 +32,6 @@ pub fn render_help(frame: &mut Frame, app: &App, theme: &Theme) {
 
     render_header(frame, app, header_area, theme);
 
-    let block_area = main_area.inner(Margin {
-        vertical: 1,
-        horizontal: 0,
-    });
-
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.accent))
@@ -44,8 +39,8 @@ pub fn render_help(frame: &mut Frame, app: &App, theme: &Theme) {
         .title_alignment(Alignment::Center)
         .padding(ratatui::widgets::Padding::new(1, 1, 0, 0));
 
-    let inner = block.inner(block_area);
-    frame.render_widget(block, block_area);
+    let inner = block.inner(main_area);
+    frame.render_widget(block, main_area);
 
     let resource: &[Binding] = &[
         ("<:qemu>", "VMs"),

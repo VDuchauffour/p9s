@@ -28,14 +28,26 @@ const PROXMOX_PIXELS: [&str; 14] = [
     "...ddd....ddd...",
 ];
 
+/// Left offset matching the table's border + padding (1 + 1).
+const TABLE_LEFT_OFFSET: u16 = 1;
+const TABLE_RIGHT_OFFSET: u16 = 1;
+
 /// Render the header section (info, keybindings, and logo).
 pub fn render_header(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
+    let shifted = Rect {
+        x: area.x + TABLE_LEFT_OFFSET,
+        width: area
+            .width
+            .saturating_sub(TABLE_LEFT_OFFSET + TABLE_RIGHT_OFFSET),
+        ..area
+    };
+
     let [info_area, keys_area, logo_area] = Layout::horizontal([
         Constraint::Length(64),
         Constraint::Length(40),
         Constraint::Min(5),
     ])
-    .areas(area);
+    .areas(shifted);
 
     render_header_info(frame, app, info_area, theme);
     if !matches!(app.modal, Some(Modal::Help)) {
@@ -97,7 +109,7 @@ fn render_header_info(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
         ("User:", user.to_string()),
         ("P9S Rev:", env!("CARGO_PKG_VERSION").to_string()),
         (
-            "Proxmox Rev:",
+            "PVE Rev:",
             if app.proxmox_version.is_empty() {
                 "n/a".to_string()
             } else {
