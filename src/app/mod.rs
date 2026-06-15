@@ -16,6 +16,7 @@ pub struct App {
     pub resources: Vec<ClusterResource>,
     pub tasks: Vec<ClusterResource>,
     pub replication: Vec<ClusterResource>,
+    pub ha: Vec<ClusterResource>,
     pub selected_index: usize,
     pub filter: String,
     pub command: String,
@@ -53,6 +54,7 @@ impl App {
             resources: Vec::new(),
             tasks: Vec::new(),
             replication: Vec::new(),
+            ha: Vec::new(),
             selected_index: 0,
             filter: String::new(),
             command: String::new(),
@@ -96,6 +98,7 @@ impl App {
         let source = match self.view.as_str() {
             "task" => &self.tasks,
             "replication" => &self.replication,
+            "ha" => &self.ha,
             _ => &self.resources,
         };
         self.display_resources = source
@@ -150,6 +153,14 @@ impl App {
             .selected_index
             .min(self.display_resources.len().saturating_sub(1));
     }
+
+    pub fn set_ha(&mut self, ha: Vec<ClusterResource>) {
+        self.ha = ha;
+        self.update_display_resources();
+        self.selected_index = self
+            .selected_index
+            .min(self.display_resources.len().saturating_sub(1));
+    }
 }
 
 #[cfg(test)]
@@ -181,6 +192,9 @@ mod tests {
             schedule: None,
             target: None,
             disable: None,
+            group: None,
+            max_restart: None,
+            max_relocate: None,
         }
     }
 
@@ -297,6 +311,9 @@ mod tests {
             schedule: None,
             target: None,
             disable: None,
+            group: None,
+            max_restart: None,
+            max_relocate: None,
         }]);
 
         app.view = "task".to_string();
@@ -329,12 +346,50 @@ mod tests {
             schedule: Some("*/15".to_string()),
             target: Some("pve2".to_string()),
             disable: Some(false),
+            group: None,
+            max_restart: None,
+            max_relocate: None,
         }]);
 
         app.view = "replication".to_string();
         app.update_display_resources();
         assert_eq!(app.filtered_resources().len(), 1);
         assert_eq!(app.filtered_resources()[0].r#type, "replication");
+    }
+
+    #[test]
+    fn test_view_switch_to_ha() {
+        let config = mock_config();
+        let mut app = App::new(config).unwrap();
+        app.set_resources(vec![mock_resource("vm1", "qemu", Some("pve1"))]);
+        app.set_ha(vec![ClusterResource {
+            id: "vm:100".to_string(),
+            r#type: "ha".to_string(),
+            name: "[vm] vm:100".to_string(),
+            node: Some("pve".to_string()),
+            status: "started".to_string(),
+            cpu: None,
+            maxcpu: None,
+            mem: None,
+            maxmem: None,
+            disk: None,
+            maxdisk: None,
+            uptime: None,
+            starttime: None,
+            endtime: None,
+            user: None,
+            schedule: None,
+            target: None,
+            disable: None,
+            group: Some("prod".to_string()),
+            max_restart: Some(1),
+            max_relocate: Some(1),
+        }]);
+
+        app.view = "ha".to_string();
+        app.update_display_resources();
+        assert_eq!(app.filtered_resources().len(), 1);
+        assert_eq!(app.filtered_resources()[0].r#type, "ha");
     }
 
     #[test]
@@ -1071,6 +1126,7 @@ mod tests {
         assert_eq!(resolve_view("tasks"), Some("task".to_string()));
         assert_eq!(resolve_view("replication"), Some("replication".to_string()));
         assert_eq!(resolve_view("repl"), Some("replication".to_string()));
+        assert_eq!(resolve_view("ha"), Some("ha".to_string()));
         assert_eq!(resolve_view(""), None);
         assert_eq!(resolve_view("unknown"), None);
     }
@@ -1141,6 +1197,7 @@ mod tests {
         assert_eq!(view_completion("sd"), Some("n"));
         assert_eq!(view_completion("ta"), Some("sk"));
         assert_eq!(view_completion("re"), Some("plication"));
+        assert_eq!(view_completion("h"), Some("a"));
     }
 
     #[test]

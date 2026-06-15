@@ -7,6 +7,7 @@ pub fn view_label(view: &str) -> &str {
         "sdn" => "SDN",
         "task" => "tasks",
         "replication" => "replication",
+        "ha" => "HA",
         other => other,
     }
 }
@@ -47,6 +48,7 @@ mod tests {
         assert_eq!(view_label("sdn"), "SDN");
         assert_eq!(view_label("task"), "tasks");
         assert_eq!(view_label("replication"), "replication");
+        assert_eq!(view_label("ha"), "HA");
     }
 
     #[test]

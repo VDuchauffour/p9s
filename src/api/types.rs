@@ -42,6 +42,12 @@ pub struct ClusterResource {
     pub target: Option<String>,
     #[serde(default)]
     pub disable: Option<bool>,
+    #[serde(default)]
+    pub group: Option<String>,
+    #[serde(default)]
+    pub max_restart: Option<u32>,
+    #[serde(default)]
+    pub max_relocate: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -90,6 +96,9 @@ impl ClusterTask {
             schedule: None,
             target: None,
             disable: None,
+            group: None,
+            max_restart: None,
+            max_relocate: None,
         }
     }
 }
@@ -136,6 +145,66 @@ impl ClusterReplication {
             schedule: Some(self.schedule),
             target: Some(self.target),
             disable: Some(self.disable),
+            group: None,
+            max_restart: None,
+            max_relocate: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ClusterHaResource {
+    pub sid: String,
+    #[serde(default)]
+    pub r#type: String,
+    #[serde(default)]
+    pub state: String,
+    #[serde(default)]
+    pub node: String,
+    #[serde(default)]
+    pub group: String,
+    #[serde(default)]
+    pub max_restart: u32,
+    #[serde(default)]
+    pub max_relocate: u32,
+}
+
+impl ClusterHaResource {
+    pub fn into_resource(self) -> ClusterResource {
+        ClusterResource {
+            id: self.sid.clone(),
+            r#type: "ha".to_string(),
+            name: format!("[{}] {}", self.r#type, self.sid),
+            node: Some(self.node.clone()),
+            status: self.state.clone(),
+            cpu: None,
+            maxcpu: None,
+            mem: None,
+            maxmem: None,
+            disk: None,
+            maxdisk: None,
+            uptime: None,
+            starttime: None,
+            endtime: None,
+            user: None,
+            schedule: None,
+            target: None,
+            disable: None,
+            group: if self.group.is_empty() {
+                None
+            } else {
+                Some(self.group)
+            },
+            max_restart: if self.max_restart == 0 {
+                None
+            } else {
+                Some(self.max_restart)
+            },
+            max_relocate: if self.max_relocate == 0 {
+                None
+            } else {
+                Some(self.max_relocate)
+            },
         }
     }
 }
@@ -156,6 +225,7 @@ impl ClusterResource {
             "storage" => self.format_storage_details(),
             "task" => self.format_task_details(),
             "replication" => self.format_replication_details(),
+            "ha" => self.format_ha_details(),
             _ => self.format_generic_details(),
         }
     }
@@ -242,6 +312,25 @@ impl ClusterResource {
         }
         if let Some(schedule) = &self.schedule {
             s.push_str(&format!("\nSchedule: {schedule}"));
+        }
+        s
+    }
+
+    fn format_ha_details(&self) -> String {
+        let mut s = format!(
+            "HA Resource: {}\nNode: {}\nState: {}",
+            self.name,
+            self.node.as_ref().unwrap_or(&"N/A".to_string()),
+            self.status
+        );
+        if let Some(group) = &self.group {
+            s.push_str(&format!("\nGroup: {group}"));
+        }
+        if let Some(max_restart) = self.max_restart {
+            s.push_str(&format!("\nMax restart: {max_restart}"));
+        }
+        if let Some(max_relocate) = self.max_relocate {
+            s.push_str(&format!("\nMax relocate: {max_relocate}"));
         }
         s
     }

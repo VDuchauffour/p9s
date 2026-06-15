@@ -51,6 +51,7 @@ pub fn render_help(frame: &mut Frame, app: &App, theme: &Theme) {
         ("<:sdn>", "SDN"),
         ("<:task>", "Tasks"),
         ("<:replication>", "Replication"),
+        ("<:ha>", "HA"),
     ];
 
     let general: &[Binding] = &[

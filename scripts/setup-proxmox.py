@@ -64,6 +64,7 @@ def collect_existing_resources(pve, node):
         "sdn_zones": set(),
         "sdn_vnets": set(),
         "replication": set(),
+        "ha": set(),
     }
     try:
         existing["vmids"] = {vm.get("vmid") for vm in node.qemu.get()}
@@ -95,11 +96,15 @@ def collect_existing_resources(pve, node):
         }
     except Exception as e:
         print(f"  Could not list replication jobs: {e}")
+    try:
+        existing["ha"] = {ha.get("sid") for ha in pve.cluster.ha.resources.get()}
+    except Exception as e:
+        print(f"  Could not list HA resources: {e}")
     return existing
 
 
 def create_vms(node, existing_vmids):
-    print("\n[1/8] Creating VMs...")
+    print("\n[1/9] Creating VMs...")
     vms = [
         {"vmid": 100, "name": "web-01", "cores": 2, "memory": 2048, "disk": "8", "tags": "production,web", "desc": "Web server frontend"},
         {"vmid": 101, "name": "web-02", "cores": 2, "memory": 2048, "disk": "8", "tags": "production,web", "desc": "Web server frontend"},
@@ -142,7 +147,7 @@ def create_vms(node, existing_vmids):
 
 
 def create_lxc(node, has_lxc_templates, existing_ctids):
-    print("\n[2/8] Creating LXC containers...")
+    print("\n[2/9] Creating LXC containers...")
     containers = [
         {"vmid": 200, "hostname": "ct-proxy", "cores": 1, "memory": 512, "disk": "4", "tags": "production,proxy", "desc": "Nginx reverse proxy"},
         {"vmid": 201, "hostname": "ct-cache", "cores": 1, "memory": 1024, "disk": "8", "tags": "production,cache", "desc": "Redis cache server"},
@@ -181,7 +186,7 @@ def create_lxc(node, has_lxc_templates, existing_ctids):
 
 
 def create_pools(pve, existing_pools):
-    print("\n[3/8] Creating pools...")
+    print("\n[3/9] Creating pools...")
     pools = [
         {"poolid": "production", "comment": "Production environment - customer facing"},
         {"poolid": "staging", "comment": "Staging environment - pre-release validation"},
@@ -199,7 +204,7 @@ def create_pools(pve, existing_pools):
 
 
 def assign_pools(pve, created_cts):
-    print("\n[4/8] Assigning resources to pools...")
+    print("\n[4/9] Assigning resources to pools...")
     pool_assignments = {
         "production": [100, 101, 102, 103, 104, 105]
         + [ct["vmid"] for ct in created_cts if ct["vmid"] <= 203],  # ty:ignore[unsupported-operator]
@@ -218,7 +223,7 @@ def assign_pools(pve, created_cts):
 
 
 def create_snapshots(node):
-    print("\n[5/8] Creating snapshots...")
+    print("\n[5/9] Creating snapshots...")
     snapshots = [
         {"vmid": 100, "snapname": "pre-deploy", "desc": "Before v2.0 deployment"},
         {"vmid": 100, "snapname": "post-deploy", "desc": "After v2.0 deployment"},
@@ -241,7 +246,7 @@ def create_snapshots(node):
 
 
 def create_sdn(pve, existing):
-    print("\n[6/8] Creating SDN zones and VNets...")
+    print("\n[6/9] Creating SDN zones and VNets...")
     created_sdn = []
     sdn_zones = [
         {"zone": "vlan-zone", "type": "vlan", "peers": "pve"},
@@ -275,7 +280,7 @@ def create_sdn(pve, existing):
 
 
 def create_replication(pve, existing):
-    print("\n[7/8] Creating replication jobs...")
+    print("\n[7/9] Creating replication jobs...")
     created_replication = []
     replication_jobs = [
         {"id": "100-0", "type": "local", "target": "pve", "vmid": 100, "schedule": "*/15"},
@@ -293,7 +298,7 @@ def create_replication(pve, existing):
 
 
 def trigger_tasks(node):
-    print("\n[8/8] Triggering cluster tasks...")
+    print("\n[8/9] Triggering cluster tasks...")
     created_tasks = []
     actions = [
         (100, "reboot", node.qemu(100).status.reboot.post),
@@ -310,6 +315,25 @@ def trigger_tasks(node):
     return created_tasks
 
 
+def create_ha_resources(pve, existing):
+    print("\n[9/9] Creating HA resources...")
+    created_ha = []
+    ha_resources = [
+        {"sid": "vm:100", "type": "vm", "state": "started", "node": "pve", "group": "production", "max_restart": 1, "max_relocate": 1},
+        {"sid": "vm:102", "type": "vm", "state": "started", "node": "pve", "group": "production", "max_restart": 1, "max_relocate": 1},
+        {"sid": "ct:200", "type": "ct", "state": "stopped", "node": "pve", "group": "staging"},
+    ]
+    for ha in ha_resources:
+        create_if_missing(
+            ha["sid"],
+            existing["ha"],
+            lambda h=ha: pve.cluster.ha.resources.create(**h),
+            created_ha,
+            "HA resource",
+        )
+    return created_ha
+
+
 def start_vms(node):
     print("\n[Extra] Starting some VMs for realistic status...")
     running_vms = [100, 101, 102, 104, 106, 109, 111]
@@ -323,7 +347,7 @@ def start_vms(node):
     return running_vms
 
 
-def print_summary(created_vms, vms, created_cts, containers, pools, snapshots, created_sdn, created_replication, created_tasks, running_vms):
+def print_summary(created_vms, vms, created_cts, containers, pools, snapshots, created_sdn, created_replication, created_tasks, created_ha, running_vms):
     print("\n" + "=" * 60)
     print("Fake Proxmox environment created successfully!")
     print("=" * 60)
@@ -334,6 +358,7 @@ def print_summary(created_vms, vms, created_cts, containers, pools, snapshots, c
     print(f"  SDN objects:  {len(created_sdn)}")
     print(f"  Replication:  {len(created_replication)}")
     print(f"  Tasks:        {len(created_tasks)}")
+    print(f"  HA resources: {len(created_ha)}")
     print(f"  Running:      {len(running_vms)} VMs started")
     print("\nYou can now connect with p9s:")
     print("  p9s --endpoint https://127.0.0.1:8006 --insecure")
@@ -357,6 +382,7 @@ def main():
     created_sdn = create_sdn(pve, existing)
     created_replication = create_replication(pve, existing)
     created_tasks = trigger_tasks(node)
+    created_ha = create_ha_resources(pve, existing)
     running_vms = start_vms(node)
 
     print_summary(
@@ -369,6 +395,7 @@ def main():
         created_sdn,
         created_replication,
         created_tasks,
+        created_ha,
         running_vms,
     )
 

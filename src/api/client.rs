@@ -2,7 +2,8 @@ use reqwest::Client;
 
 use super::error::ProxmoxError;
 use super::types::{
-    ClusterReplication, ClusterResource, ClusterTask, PveVersion, RrdDataPoint, TaskStatus, WhoAmI,
+    ClusterHaResource, ClusterReplication, ClusterResource, ClusterTask, PveVersion, RrdDataPoint,
+    TaskStatus, WhoAmI,
 };
 
 pub struct ProxmoxClient {
@@ -75,6 +76,21 @@ impl ProxmoxClient {
             .map_err(|e| ProxmoxError::Api(format!("Failed to parse replication: {e}")))?
             .into_iter()
             .map(ClusterReplication::into_resource)
+            .collect())
+    }
+
+    pub async fn fetch_ha_resources(&self) -> Result<Vec<ClusterResource>, ProxmoxError> {
+        let data = self.get_data("/api2/json/cluster/ha/resources").await?;
+        let array = data
+            .as_array()
+            .ok_or_else(|| ProxmoxError::Api("Expected array response".into()))?;
+        Ok(array
+            .iter()
+            .map(|v| serde_json::from_value::<ClusterHaResource>(v.clone()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| ProxmoxError::Api(format!("Failed to parse HA resource: {e}")))?
+            .into_iter()
+            .map(ClusterHaResource::into_resource)
             .collect())
     }
 
@@ -529,6 +545,44 @@ mod tests {
         assert_eq!(jobs[0].status, "enabled");
         assert_eq!(jobs[1].status, "disabled");
         assert_eq!(jobs[1].schedule.as_deref(), Some("0 2 * * *"));
+    }
+
+    #[test]
+    fn test_parse_ha_resources() {
+        let json = serde_json::json!({
+            "data": [
+                {
+                    "sid": "vm:100",
+                    "type": "vm",
+                    "state": "started",
+                    "node": "pve",
+                    "group": "production",
+                    "max_restart": 1,
+                    "max_relocate": 1
+                },
+                {
+                    "sid": "ct:200",
+                    "type": "ct",
+                    "state": "stopped",
+                    "node": "pve"
+                }
+            ]
+        });
+
+        let data = json.get("data").and_then(|d| d.as_array()).unwrap();
+        let ha: Vec<ClusterResource> = data
+            .iter()
+            .map(|v| serde_json::from_value::<ClusterHaResource>(v.clone()).unwrap())
+            .map(ClusterHaResource::into_resource)
+            .collect();
+
+        assert_eq!(ha.len(), 2);
+        assert_eq!(ha[0].r#type, "ha");
+        assert_eq!(ha[0].name, "[vm] vm:100");
+        assert_eq!(ha[0].status, "started");
+        assert_eq!(ha[0].group.as_deref(), Some("production"));
+        assert_eq!(ha[1].status, "stopped");
+        assert_eq!(ha[1].group, None);
     }
 
     #[tokio::test]
