@@ -5,6 +5,7 @@ pub fn view_label(view: &str) -> &str {
         "lxc" => "containers",
         "pool" => "pools",
         "sdn" => "SDN",
+        "task" => "tasks",
         other => other,
     }
 }
@@ -43,6 +44,7 @@ mod tests {
         assert_eq!(view_label("storage"), "storage");
         assert_eq!(view_label("pool"), "pools");
         assert_eq!(view_label("sdn"), "SDN");
+        assert_eq!(view_label("task"), "tasks");
     }
 
     #[test]

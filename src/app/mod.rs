@@ -14,6 +14,7 @@ use crate::config::Config;
 
 pub struct App {
     pub resources: Vec<ClusterResource>,
+    pub tasks: Vec<ClusterResource>,
     pub selected_index: usize,
     pub filter: String,
     pub command: String,
@@ -49,6 +50,7 @@ impl App {
 
         let mut app = Self {
             resources: Vec::new(),
+            tasks: Vec::new(),
             selected_index: 0,
             filter: String::new(),
             command: String::new(),
@@ -89,8 +91,12 @@ impl App {
 
     pub fn update_display_resources(&mut self) {
         let f = self.filter.to_lowercase();
-        self.display_resources = self
-            .resources
+        let source = if self.view == "task" {
+            &self.tasks
+        } else {
+            &self.resources
+        };
+        self.display_resources = source
             .iter()
             .filter(|r| r.r#type == self.view)
             .filter(|r| {
@@ -126,6 +132,14 @@ impl App {
                 .min(self.display_resources.len().saturating_sub(1));
         }
     }
+
+    pub fn set_tasks(&mut self, tasks: Vec<ClusterResource>) {
+        self.tasks = tasks;
+        self.update_display_resources();
+        self.selected_index = self
+            .selected_index
+            .min(self.display_resources.len().saturating_sub(1));
+    }
 }
 
 #[cfg(test)]
@@ -151,6 +165,9 @@ mod tests {
             disk: None,
             maxdisk: None,
             uptime: None,
+            starttime: None,
+            endtime: None,
+            user: None,
         }
     }
 
@@ -241,6 +258,35 @@ mod tests {
         app.update_display_resources();
         assert_eq!(app.filtered_resources().len(), 1);
         assert_eq!(app.filtered_resources()[0].r#type, "sdn");
+    }
+
+    #[test]
+    fn test_view_switch_to_tasks_uses_task_source() {
+        let config = mock_config();
+        let mut app = App::new(config).unwrap();
+        app.set_resources(vec![mock_resource("vm1", "qemu", Some("pve1"))]);
+        app.set_tasks(vec![ClusterResource {
+            id: "UPID:pve:00000000:00000000:RUNNING:vmstart:100:root@pam:".to_string(),
+            r#type: "task".to_string(),
+            name: "vmstart".to_string(),
+            node: Some("pve".to_string()),
+            status: "running".to_string(),
+            cpu: None,
+            maxcpu: None,
+            mem: None,
+            maxmem: None,
+            disk: None,
+            maxdisk: None,
+            uptime: None,
+            starttime: Some(1_700_000_000),
+            endtime: None,
+            user: Some("root@pam".to_string()),
+        }]);
+
+        app.view = "task".to_string();
+        app.update_display_resources();
+        assert_eq!(app.filtered_resources().len(), 1);
+        assert_eq!(app.filtered_resources()[0].r#type, "task");
     }
 
     #[test]
@@ -973,6 +1019,8 @@ mod tests {
         assert_eq!(resolve_view("pools"), Some("pool".to_string()));
         assert_eq!(resolve_view("sdn"), Some("sdn".to_string()));
         assert_eq!(resolve_view("sdns"), Some("sdn".to_string()));
+        assert_eq!(resolve_view("task"), Some("task".to_string()));
+        assert_eq!(resolve_view("tasks"), Some("task".to_string()));
         assert_eq!(resolve_view(""), None);
         assert_eq!(resolve_view("unknown"), None);
     }
@@ -1041,6 +1089,7 @@ mod tests {
         assert_eq!(view_completion("st"), Some("orage"));
         assert_eq!(view_completion("po"), Some("ol"));
         assert_eq!(view_completion("sd"), Some("n"));
+        assert_eq!(view_completion("ta"), Some("sk"));
     }
 
     #[test]

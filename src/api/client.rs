@@ -1,7 +1,7 @@
 use reqwest::Client;
 
 use super::error::ProxmoxError;
-use super::types::{ClusterResource, PveVersion, RrdDataPoint, TaskStatus, WhoAmI};
+use super::types::{ClusterResource, ClusterTask, PveVersion, RrdDataPoint, TaskStatus, WhoAmI};
 
 pub struct ProxmoxClient {
     client: Client,
@@ -44,6 +44,21 @@ impl ProxmoxClient {
             r.normalize();
         }
         Ok(resources)
+    }
+
+    pub async fn fetch_cluster_tasks(&self) -> Result<Vec<ClusterResource>, ProxmoxError> {
+        let data = self.get_data("/api2/json/cluster/tasks").await?;
+        let array = data
+            .as_array()
+            .ok_or_else(|| ProxmoxError::Api("Expected array response".into()))?;
+        Ok(array
+            .iter()
+            .map(|v| serde_json::from_value::<ClusterTask>(v.clone()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| ProxmoxError::Api(format!("Failed to parse task: {e}")))?
+            .into_iter()
+            .map(ClusterTask::into_resource)
+            .collect())
     }
 
     pub async fn fetch_rrd_data(
@@ -414,6 +429,49 @@ mod tests {
         assert_eq!(resources[0].status, "");
         assert_eq!(resources[1].r#type, "qemu");
         assert_eq!(resources[1].status, "running");
+    }
+
+    #[test]
+    fn test_parse_cluster_tasks() {
+        let json = serde_json::json!({
+            "data": [
+                {
+                    "upid": "UPID:pve:00123456:00000001:RUNNING:vmstart:100:root@pam:",
+                    "type": "vmstart",
+                    "status": "running",
+                    "starttime": 1700000000,
+                    "endtime": 0,
+                    "node": "pve",
+                    "user": "root@pam"
+                },
+                {
+                    "upid": "UPID:pve:00987654:00000002:OK:vzdump:101:root@pam:",
+                    "type": "vzdump",
+                    "status": "",
+                    "exitstatus": "OK",
+                    "starttime": 1700000100,
+                    "endtime": 1700000200,
+                    "node": "pve",
+                    "user": "root@pam"
+                }
+            ]
+        });
+
+        let data = json.get("data").and_then(|d| d.as_array()).unwrap();
+        let tasks: Vec<ClusterResource> = data
+            .iter()
+            .map(|v| serde_json::from_value::<ClusterTask>(v.clone()).unwrap())
+            .map(ClusterTask::into_resource)
+            .collect();
+
+        assert_eq!(tasks.len(), 2);
+        assert_eq!(tasks[0].r#type, "task");
+        assert_eq!(tasks[0].name, "vmstart");
+        assert_eq!(tasks[0].status, "running");
+        assert_eq!(tasks[0].endtime, None);
+        assert_eq!(tasks[1].name, "vzdump");
+        assert_eq!(tasks[1].status, "OK");
+        assert_eq!(tasks[1].endtime, Some(1_700_000_200));
     }
 
     #[tokio::test]

@@ -58,6 +58,9 @@ pub async fn run(config: Config) -> Result<()> {
                         app.connected = true;
                         app.set_resources(resources);
                     }
+                    AppEvent::TaskSnapshot(tasks) => {
+                        app.set_tasks(tasks);
+                    }
                     AppEvent::VersionSnapshot(version) => {
                         app.proxmox_version = version;
                     }
@@ -201,6 +204,14 @@ fn spawn_polling_task(
             match client.fetch_resources().await {
                 Ok(resources) => {
                     let _ = tx.send(AppEvent::ClusterSnapshot(resources));
+                }
+                Err(e) => {
+                    let _ = tx.send(AppEvent::ApiError(e.to_string()));
+                }
+            }
+            match client.fetch_cluster_tasks().await {
+                Ok(tasks) => {
+                    let _ = tx.send(AppEvent::TaskSnapshot(tasks));
                 }
                 Err(e) => {
                     let _ = tx.send(AppEvent::ApiError(e.to_string()));

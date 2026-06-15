@@ -30,6 +30,59 @@ pub struct ClusterResource {
     pub disk: Option<u64>,
     pub maxdisk: Option<u64>,
     pub uptime: Option<u64>,
+    #[serde(default)]
+    pub starttime: Option<u64>,
+    #[serde(default)]
+    pub endtime: Option<u64>,
+    #[serde(default)]
+    pub user: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ClusterTask {
+    pub upid: String,
+    #[serde(default)]
+    pub r#type: String,
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub exitstatus: String,
+    pub starttime: u64,
+    #[serde(default)]
+    pub endtime: u64,
+    pub node: String,
+    #[serde(default)]
+    pub user: String,
+}
+
+impl ClusterTask {
+    pub fn into_resource(self) -> ClusterResource {
+        ClusterResource {
+            id: self.upid,
+            r#type: "task".to_string(),
+            name: self.r#type.clone(),
+            node: Some(self.node),
+            status: if self.status.is_empty() {
+                self.exitstatus.clone()
+            } else {
+                self.status.clone()
+            },
+            cpu: None,
+            maxcpu: None,
+            mem: None,
+            maxmem: None,
+            disk: None,
+            maxdisk: None,
+            uptime: None,
+            starttime: Some(self.starttime),
+            endtime: if self.endtime == 0 {
+                None
+            } else {
+                Some(self.endtime)
+            },
+            user: Some(self.user),
+        }
+    }
 }
 
 impl ClusterResource {
@@ -46,6 +99,7 @@ impl ClusterResource {
             "qemu" | "lxc" => self.format_vm_details(),
             "node" => self.format_node_details(),
             "storage" => self.format_storage_details(),
+            "task" => self.format_task_details(),
             _ => self.format_generic_details(),
         }
     }
@@ -99,6 +153,25 @@ impl ClusterResource {
             "Name: {}\nType: {}\nStatus: {}",
             self.name, self.r#type, self.status
         )
+    }
+
+    fn format_task_details(&self) -> String {
+        let mut s = format!(
+            "Task: {}\nNode: {}\nStatus: {}",
+            self.name,
+            self.node.as_ref().unwrap_or(&"N/A".to_string()),
+            self.status
+        );
+        if let Some(user) = &self.user {
+            s.push_str(&format!("\nUser: {user}"));
+        }
+        if let Some(start) = self.starttime {
+            s.push_str(&format!("\nStarted: {start}"));
+        }
+        if let Some(end) = self.endtime {
+            s.push_str(&format!("\nEnded: {end}"));
+        }
+        s
     }
 }
 
