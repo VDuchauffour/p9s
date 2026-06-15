@@ -295,6 +295,13 @@ def create_sdn(pve, existing):
 def create_replication(pve, existing):
     print("\n[7/11] Creating replication jobs...")
     created_replication = []
+    try:
+        node_count = len(pve.nodes.get())
+    except Exception:
+        node_count = 1
+    if node_count < 2:
+        print("  Skipping replication — requires at least 2 cluster nodes")
+        return created_replication
     replication_jobs = [
         {"id": "100-0", "type": "local", "target": "pve", "schedule": "*/15"},
         {"id": "102-0", "type": "local", "target": "pve", "schedule": "02:00"},
@@ -331,19 +338,10 @@ def trigger_tasks(node):
 def create_ha_resources(pve, existing):
     print("\n[9/11] Creating HA resources...")
     created_ha = []
-    ha_groups = [
-        {"group": "prodgrp", "nodes": "pve"},
-    ]
-    for group in ha_groups:
-        try:
-            pve.cluster.ha.groups.create(**group)
-            print(f"  Created HA group: {group['group']}")
-        except Exception as e:
-            print(f"  Warning: HA group {group['group']} issue: {e}")
     ha_resources = [
-        {"sid": "vm:100", "state": "started", "group": "prodgrp", "max_restart": 1, "max_relocate": 1},
-        {"sid": "vm:102", "state": "started", "group": "prodgrp", "max_restart": 1, "max_relocate": 1},
-        {"sid": "vm:104", "state": "stopped", "group": "prodgrp"},
+        {"sid": "vm:100", "state": "started", "max_restart": 1, "max_relocate": 1},
+        {"sid": "vm:102", "state": "started", "max_restart": 1, "max_relocate": 1},
+        {"sid": "vm:104", "state": "stopped"},
     ]
     for ha in ha_resources:
         create_if_missing(
