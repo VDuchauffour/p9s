@@ -59,7 +59,7 @@ pub fn render_header(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
 fn render_header_info(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
     let label_style = Style::default().fg(theme.warning);
 
-    let host = app.config.host.as_deref().unwrap_or("n/a");
+    let endpoint = app.config.endpoint.as_deref().unwrap_or("n/a");
     let raw_user = if app.proxmox_user.is_empty() {
         app.config.token_id.as_deref().unwrap_or("n/a")
     } else {
@@ -104,7 +104,7 @@ fn render_header_info(frame: &mut Frame, app: &App, area: Rect, theme: &Theme) {
     };
 
     let fields: &[(&str, String)] = &[
-        ("Endpoint:", host.to_string()),
+        ("Endpoint:", endpoint.to_string()),
         ("Cluster:", "Proxmox VE".to_string()),
         ("User:", user.to_string()),
         ("P9S Rev:", env!("CARGO_PKG_VERSION").to_string()),

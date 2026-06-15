@@ -11,7 +11,7 @@ pub struct ProxmoxClient {
 
 impl ProxmoxClient {
     pub fn new(
-        host: &str,
+        endpoint: &str,
         token_id: &str,
         token: &str,
         insecure: bool,
@@ -19,7 +19,7 @@ impl ProxmoxClient {
         let client = Client::builder()
             .danger_accept_invalid_certs(insecure)
             .build()?;
-        let base_url = host.trim_end_matches('/').to_string();
+        let base_url = endpoint.trim_end_matches('/').to_string();
         let auth_header = format!("PVEAPIToken={}={}", token_id, token);
         Ok(Self {
             client,

@@ -11,9 +11,9 @@
       "description": "Proxmox VE connection settings. CLI flags override these values.",
       "additionalProperties": false,
       "properties": {
-        "host": {
+        "endpoint": {
           "type": "string",
-          "description": "Proxmox host URL (e.g. https://pve.local).",
+          "description": "Proxmox endpoint URL (e.g. https://pve.local).",
           "format": "uri"
         },
         "token_id": {

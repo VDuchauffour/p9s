@@ -35,8 +35,8 @@ pub enum ThemeKind {
 #[derive(Debug, Parser)]
 #[command(name = "p9s", about = "A k9s-like terminal UI for Proxmox VE", styles = cargo_styles())]
 pub struct Cli {
-    #[arg(long, help = "Proxmox host URL")]
-    pub host: Option<String>,
+    #[arg(long, help = "Proxmox endpoint URL")]
+    pub endpoint: Option<String>,
 
     #[arg(long, help = "API token ID (e.g. root@pam!p9s)")]
     pub token_id: Option<String>,
@@ -71,7 +71,7 @@ struct FileConfig {
 #[derive(Debug, Default, Deserialize)]
 struct ConnectionSection {
     #[serde(default)]
-    host: Option<String>,
+    endpoint: Option<String>,
     #[serde(default)]
     token_id: Option<String>,
     #[serde(default)]
@@ -89,7 +89,7 @@ struct UiSection {
 /// Fully resolved runtime configuration consumed by the app.
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub host: Option<String>,
+    pub endpoint: Option<String>,
     pub token_id: Option<String>,
     pub secret: Option<String>,
     pub insecure: bool,
@@ -100,7 +100,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            host: None,
+            endpoint: None,
             token_id: None,
             secret: None,
             insecure: false,
@@ -181,7 +181,7 @@ impl Cli {
         } = read_file_config(self.config.as_deref())?;
 
         let mut cfg = Config {
-            host: connection.host,
+            endpoint: connection.endpoint,
             token_id: connection.token_id,
             secret: connection.secret,
             insecure: connection.insecure.unwrap_or(false),
@@ -190,8 +190,8 @@ impl Cli {
         };
 
         // CLI overrides — only when a value was actually provided.
-        if self.host.is_some() {
-            cfg.host = self.host;
+        if self.endpoint.is_some() {
+            cfg.endpoint = self.endpoint;
         }
         if self.token_id.is_some() {
             cfg.token_id = self.token_id;
@@ -215,7 +215,7 @@ mod tests {
 
     fn cli_with_config(config: PathBuf) -> Cli {
         Cli {
-            host: None,
+            endpoint: None,
             token_id: None,
             secret: None,
             insecure: None,
@@ -227,7 +227,7 @@ mod tests {
     fn test_yaml_config_parsing() {
         let yaml = r#"
 connection:
-  host: https://pve.example.com
+  endpoint: https://pve.example.com
   token_id: root@pam!p9s
   secret: secret123
   insecure: true
@@ -237,7 +237,7 @@ refresh_interval: 10
 "#;
         let file: FileConfig = serde_yaml::from_str(yaml).unwrap();
         let conn = file.connection;
-        assert_eq!(conn.host, Some("https://pve.example.com".to_string()));
+        assert_eq!(conn.endpoint, Some("https://pve.example.com".to_string()));
         assert_eq!(conn.token_id, Some("root@pam!p9s".to_string()));
         assert_eq!(conn.secret, Some("secret123".to_string()));
         assert_eq!(conn.insecure, Some(true));
@@ -257,15 +257,15 @@ refresh_interval: 10
     #[test]
     fn test_cli_overrides_file() {
         let mut tmp = tempfile::NamedTempFile::new().unwrap();
-        writeln!(tmp, "connection:\n  host: https://file.example.com").unwrap();
+        writeln!(tmp, "connection:\n  endpoint: https://file.example.com").unwrap();
 
         let args = Cli {
-            host: Some("https://cli.example.com".to_string()),
+            endpoint: Some("https://cli.example.com".to_string()),
             ..cli_with_config(tmp.path().to_path_buf())
         };
 
         let cfg = args.load().unwrap();
-        assert_eq!(cfg.host, Some("https://cli.example.com".to_string()));
+        assert_eq!(cfg.endpoint, Some("https://cli.example.com".to_string()));
     }
 
     #[test]
@@ -273,14 +273,14 @@ refresh_interval: 10
         let mut tmp = tempfile::NamedTempFile::new().unwrap();
         writeln!(
             tmp,
-            "connection:\n  host: https://file.example.com\n  insecure: true\nui:\n  theme: no-color\nrefresh_interval: 20"
+            "connection:\n  endpoint: https://file.example.com\n  insecure: true\nui:\n  theme: no-color\nrefresh_interval: 20"
         )
         .unwrap();
 
         let args = cli_with_config(tmp.path().to_path_buf());
 
         let cfg = args.load().unwrap();
-        assert_eq!(cfg.host, Some("https://file.example.com".to_string()));
+        assert_eq!(cfg.endpoint, Some("https://file.example.com".to_string()));
         assert!(cfg.insecure);
         assert_eq!(cfg.refresh_interval, 20);
         assert_eq!(cfg.theme, ThemeKind::NoColor);
@@ -320,7 +320,7 @@ refresh_interval: 10
         let args = cli_with_config(PathBuf::from("/nonexistent/p9s/config.yaml"));
 
         let cfg = args.load().unwrap();
-        assert_eq!(cfg.host, None);
+        assert_eq!(cfg.endpoint, None);
         assert_eq!(cfg.refresh_interval, 5);
         assert_eq!(cfg.theme, ThemeKind::Default);
         assert!(!cfg.no_color());
@@ -355,7 +355,7 @@ refresh_interval: 10
     #[test]
     fn test_schema_rejects_unknown_top_level_key() {
         let mut tmp = tempfile::NamedTempFile::new().unwrap();
-        writeln!(tmp, "connexion:\n  host: https://pve.example.com").unwrap();
+        writeln!(tmp, "connexion:\n  endpoint: https://pve.example.com").unwrap();
 
         let args = cli_with_config(tmp.path().to_path_buf());
         assert!(args.load().is_err());

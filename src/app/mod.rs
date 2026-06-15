@@ -34,11 +34,11 @@ pub struct App {
 
 impl App {
     pub fn new(config: Config) -> anyhow::Result<Self> {
-        let client = if let (Some(host), Some(token_id), Some(secret)) =
-            (&config.host, &config.token_id, &config.secret)
+        let client = if let (Some(endpoint), Some(token_id), Some(secret)) =
+            (&config.endpoint, &config.token_id, &config.secret)
         {
             Some(Arc::new(crate::api::ProxmoxClient::new(
-                host,
+                endpoint,
                 token_id,
                 secret,
                 config.insecure,

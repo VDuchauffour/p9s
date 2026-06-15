@@ -23,7 +23,7 @@ p9s reads `~/.config/p9s/config.yaml`. CLI flags override file values:
 
 ```yaml
 connection:
-  host: https://pve.local
+  endpoint: https://pve.local
   token_id: root@pam!p9s
   secret: abc123
   insecure: true
@@ -38,7 +38,7 @@ refresh_interval: 5
 Usage: p9s [OPTIONS]
 
 Options:
-      --host <HOST>          Proxmox host URL
+      --endpoint <ENDPOINT>  Proxmox endpoint URL
       --token-id <TOKEN_ID>  API token ID (e.g. root@pam!p9s)
       --secret <SECRET>        API token secret
       --insecure [<INSECURE>]  Allow insecure HTTPS (self-signed certs) [possible values: true, false]
