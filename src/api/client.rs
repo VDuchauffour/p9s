@@ -572,7 +572,7 @@ mod tests {
                     "source": "pve",
                     "target": "pve2",
                     "schedule": "*/15",
-                    "disable": false
+                    "disable": 0
                 },
                 {
                     "id": "101-0",
@@ -581,7 +581,7 @@ mod tests {
                     "source": "pve",
                     "target": "pve2",
                     "schedule": "0 2 * * *",
-                    "disable": true
+                    "disable": 1
                 }
             ]
         });
@@ -645,20 +645,18 @@ mod tests {
             "data": [
                 {
                     "id": "backup-100",
-                    "type": "vm",
                     "vmid": "100",
                     "schedule": "0 2 * * *",
-                    "enabled": true,
+                    "enabled": 1,
                     "mode": "stop",
                     "storage": "local",
                     "node": "pve"
                 },
                 {
                     "id": "backup-200",
-                    "type": "ct",
                     "vmid": "200",
                     "schedule": "0 3 * * 0",
-                    "enabled": false,
+                    "enabled": 0,
                     "mode": "suspend",
                     "storage": "local",
                     "node": "pve"
@@ -675,7 +673,7 @@ mod tests {
 
         assert_eq!(backups.len(), 2);
         assert_eq!(backups[0].r#type, "backup");
-        assert_eq!(backups[0].name, "[vm] 100");
+        assert_eq!(backups[0].name, "100");
         assert_eq!(backups[0].status, "enabled");
         assert_eq!(backups[1].status, "disabled");
         assert_eq!(backups[1].storage.as_deref(), Some("local"));
@@ -701,7 +699,7 @@ mod tests {
                     "model": "",
                     "health": "UNKNOWN",
                     "serial": "",
-                    "wearout": -1
+                    "wearout": "N/A"
                 }
             ]
         });

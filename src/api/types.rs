@@ -1,5 +1,34 @@
 use serde::Deserialize;
 
+/// Proxmox returns booleans as integers (`0`/`1`) on most endpoints; accept
+/// bool, integer, or string forms.
+fn de_flexible_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(match value {
+        serde_json::Value::Bool(b) => b,
+        serde_json::Value::Number(n) => n.as_i64().unwrap_or(0) != 0,
+        serde_json::Value::String(s) => s == "1" || s.eq_ignore_ascii_case("true"),
+        _ => false,
+    })
+}
+
+/// Proxmox disk `wearout` is an integer for SSDs but the string `"N/A"` for
+/// spinning disks; coerce anything non-numeric to `None`.
+fn de_flexible_wearout<'de, D>(deserializer: D) -> Result<Option<u32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(match value {
+        serde_json::Value::Number(n) => n.as_u64().map(|x| x as u32),
+        serde_json::Value::String(s) => s.parse::<u32>().ok(),
+        _ => None,
+    })
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct PveVersion {
     pub version: String,
@@ -134,7 +163,7 @@ pub struct ClusterReplication {
     pub target: String,
     #[serde(default)]
     pub schedule: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "de_flexible_bool")]
     pub disable: bool,
 }
 
@@ -246,7 +275,7 @@ pub struct ClusterBackup {
     pub r#type: String,
     #[serde(default)]
     pub schedule: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "de_flexible_bool")]
     pub enabled: bool,
     #[serde(default)]
     pub mode: String,
@@ -328,8 +357,8 @@ pub struct NodeDisk {
     pub health: String,
     #[serde(default)]
     pub serial: String,
-    #[serde(default)]
-    pub wearout: i32,
+    #[serde(default, deserialize_with = "de_flexible_wearout")]
+    pub wearout: Option<u32>,
 }
 
 impl NodeDisk {
@@ -377,11 +406,7 @@ impl NodeDisk {
             } else {
                 Some(self.serial)
             },
-            wearout: if self.wearout < 0 {
-                None
-            } else {
-                Some(self.wearout as u32)
-            },
+            wearout: self.wearout,
         }
     }
 }
