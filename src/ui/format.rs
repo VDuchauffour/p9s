@@ -3,6 +3,8 @@ pub fn view_label(view: &str) -> &str {
     match view {
         "qemu" => "VMs",
         "lxc" => "containers",
+        "pool" => "pools",
+        "sdn" => "SDN",
         other => other,
     }
 }
@@ -39,10 +41,12 @@ mod tests {
         assert_eq!(view_label("qemu"), "VMs");
         assert_eq!(view_label("lxc"), "containers");
         assert_eq!(view_label("storage"), "storage");
+        assert_eq!(view_label("pool"), "pools");
+        assert_eq!(view_label("sdn"), "SDN");
     }
 
     #[test]
     fn view_label_passes_through_unknown() {
-        assert_eq!(view_label("sdn"), "sdn");
+        assert_eq!(view_label("custom"), "custom");
     }
 }

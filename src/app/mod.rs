@@ -223,6 +223,27 @@ mod tests {
     }
 
     #[test]
+    fn test_view_switch_to_pool_and_sdn() {
+        let config = mock_config();
+        let mut app = App::new(config).unwrap();
+        app.set_resources(vec![
+            mock_resource("prod", "pool", None),
+            mock_resource("vlan", "sdn", None),
+            mock_resource("vm1", "qemu", Some("pve1")),
+        ]);
+
+        app.view = "pool".to_string();
+        app.update_display_resources();
+        assert_eq!(app.filtered_resources().len(), 1);
+        assert_eq!(app.filtered_resources()[0].r#type, "pool");
+
+        app.view = "sdn".to_string();
+        app.update_display_resources();
+        assert_eq!(app.filtered_resources().len(), 1);
+        assert_eq!(app.filtered_resources()[0].r#type, "sdn");
+    }
+
+    #[test]
     fn test_filter_subset_by_node() {
         let config = mock_config();
         let mut app = App::new(config).unwrap();
@@ -948,8 +969,12 @@ mod tests {
         assert_eq!(resolve_view("lxc"), Some("lxc".to_string()));
         assert_eq!(resolve_view("storage"), Some("storage".to_string()));
         assert_eq!(resolve_view("storages"), Some("storage".to_string()));
+        assert_eq!(resolve_view("pool"), Some("pool".to_string()));
+        assert_eq!(resolve_view("pools"), Some("pool".to_string()));
+        assert_eq!(resolve_view("sdn"), Some("sdn".to_string()));
+        assert_eq!(resolve_view("sdns"), Some("sdn".to_string()));
         assert_eq!(resolve_view(""), None);
-        assert_eq!(resolve_view("sdn"), None);
+        assert_eq!(resolve_view("unknown"), None);
     }
 
     #[test]
@@ -1014,6 +1039,8 @@ mod tests {
         assert_eq!(view_completion("ct"), Some(""));
         assert_eq!(view_completion("l"), Some("xc"));
         assert_eq!(view_completion("st"), Some("orage"));
+        assert_eq!(view_completion("po"), Some("ol"));
+        assert_eq!(view_completion("sd"), Some("n"));
     }
 
     #[test]
