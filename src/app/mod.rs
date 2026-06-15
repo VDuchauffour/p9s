@@ -18,6 +18,7 @@ pub struct App {
     pub replication: Vec<ClusterResource>,
     pub ha: Vec<ClusterResource>,
     pub backups: Vec<ClusterResource>,
+    pub disks: Vec<ClusterResource>,
     pub selected_index: usize,
     pub filter: String,
     pub command: String,
@@ -57,6 +58,7 @@ impl App {
             replication: Vec::new(),
             ha: Vec::new(),
             backups: Vec::new(),
+            disks: Vec::new(),
             selected_index: 0,
             filter: String::new(),
             command: String::new(),
@@ -102,6 +104,7 @@ impl App {
             "replication" => &self.replication,
             "ha" => &self.ha,
             "backup" => &self.backups,
+            "disk" => &self.disks,
             _ => &self.resources,
         };
         self.display_resources = source
@@ -172,6 +175,14 @@ impl App {
             .selected_index
             .min(self.display_resources.len().saturating_sub(1));
     }
+
+    pub fn set_disks(&mut self, disks: Vec<ClusterResource>) {
+        self.disks = disks;
+        self.update_display_resources();
+        self.selected_index = self
+            .selected_index
+            .min(self.display_resources.len().saturating_sub(1));
+    }
 }
 
 #[cfg(test)]
@@ -209,6 +220,9 @@ mod tests {
             enabled: None,
             storage: None,
             mode: None,
+            model: None,
+            serial: None,
+            wearout: None,
         }
     }
 
@@ -331,6 +345,9 @@ mod tests {
             enabled: None,
             storage: None,
             mode: None,
+            model: None,
+            serial: None,
+            wearout: None,
         }]);
 
         app.view = "task".to_string();
@@ -369,6 +386,9 @@ mod tests {
             enabled: None,
             storage: None,
             mode: None,
+            model: None,
+            serial: None,
+            wearout: None,
         }]);
 
         app.view = "replication".to_string();
@@ -407,6 +427,9 @@ mod tests {
             enabled: None,
             storage: None,
             mode: None,
+            model: None,
+            serial: None,
+            wearout: None,
         }]);
 
         app.view = "ha".to_string();
@@ -445,12 +468,56 @@ mod tests {
             enabled: Some(true),
             storage: Some("local".to_string()),
             mode: Some("stop".to_string()),
+            model: None,
+            serial: None,
+            wearout: None,
         }]);
 
         app.view = "backup".to_string();
         app.update_display_resources();
         assert_eq!(app.filtered_resources().len(), 1);
         assert_eq!(app.filtered_resources()[0].r#type, "backup");
+    }
+
+    #[test]
+    fn test_view_switch_to_disks() {
+        let config = mock_config();
+        let mut app = App::new(config).unwrap();
+        app.set_resources(vec![mock_resource("vm1", "qemu", Some("pve1"))]);
+        app.set_disks(vec![ClusterResource {
+            id: "/dev/sda".to_string(),
+            r#type: "disk".to_string(),
+            name: "Samsung SSD".to_string(),
+            node: Some("pve".to_string()),
+            status: "PASSED".to_string(),
+            cpu: None,
+            maxcpu: None,
+            mem: None,
+            maxmem: None,
+            disk: Some(1_000_000_000_000),
+            maxdisk: None,
+            uptime: None,
+            starttime: None,
+            endtime: None,
+            user: None,
+            schedule: None,
+            target: None,
+            disable: None,
+            group: None,
+            max_restart: None,
+            max_relocate: None,
+            enabled: None,
+            storage: None,
+            mode: None,
+            model: Some("Samsung SSD".to_string()),
+            serial: Some("ABC123".to_string()),
+            wearout: Some(95),
+        }]);
+
+        app.view = "disk".to_string();
+        app.update_display_resources();
+        assert_eq!(app.filtered_resources().len(), 1);
+        assert_eq!(app.filtered_resources()[0].r#type, "disk");
     }
 
     #[test]
@@ -1190,6 +1257,8 @@ mod tests {
         assert_eq!(resolve_view("ha"), Some("ha".to_string()));
         assert_eq!(resolve_view("backup"), Some("backup".to_string()));
         assert_eq!(resolve_view("backups"), Some("backup".to_string()));
+        assert_eq!(resolve_view("disk"), Some("disk".to_string()));
+        assert_eq!(resolve_view("disks"), Some("disk".to_string()));
         assert_eq!(resolve_view(""), None);
         assert_eq!(resolve_view("unknown"), None);
     }
@@ -1262,6 +1331,7 @@ mod tests {
         assert_eq!(view_completion("re"), Some("plication"));
         assert_eq!(view_completion("h"), Some("a"));
         assert_eq!(view_completion("ba"), Some("ckup"));
+        assert_eq!(view_completion("di"), Some("sk"));
     }
 
     #[test]

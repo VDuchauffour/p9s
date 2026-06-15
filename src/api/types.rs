@@ -54,6 +54,12 @@ pub struct ClusterResource {
     pub storage: Option<String>,
     #[serde(default)]
     pub mode: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub serial: Option<String>,
+    #[serde(default)]
+    pub wearout: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -108,6 +114,9 @@ impl ClusterTask {
             enabled: None,
             storage: None,
             mode: None,
+            model: None,
+            serial: None,
+            wearout: None,
         }
     }
 }
@@ -160,6 +169,9 @@ impl ClusterReplication {
             enabled: None,
             storage: None,
             mode: None,
+            model: None,
+            serial: None,
+            wearout: None,
         }
     }
 }
@@ -220,6 +232,9 @@ impl ClusterHaResource {
             enabled: None,
             storage: None,
             mode: None,
+            model: None,
+            serial: None,
+            wearout: None,
         }
     }
 }
@@ -290,6 +305,79 @@ impl ClusterBackup {
             } else {
                 Some(self.mode)
             },
+            model: None,
+            serial: None,
+            wearout: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct NodeDisk {
+    pub devpath: String,
+    #[serde(default)]
+    pub r#type: String,
+    pub size: u64,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub health: String,
+    #[serde(default)]
+    pub serial: String,
+    #[serde(default)]
+    pub wearout: i32,
+}
+
+impl NodeDisk {
+    pub fn into_resource(self, node: String) -> ClusterResource {
+        ClusterResource {
+            id: self.devpath.clone(),
+            r#type: "disk".to_string(),
+            name: if self.model.is_empty() {
+                format!("[{}] {}", self.r#type, self.devpath)
+            } else {
+                format!("[{}] {}", self.r#type, self.model)
+            },
+            node: Some(node),
+            status: if self.health.is_empty() {
+                "unknown".to_string()
+            } else {
+                self.health.clone()
+            },
+            cpu: None,
+            maxcpu: None,
+            mem: None,
+            maxmem: None,
+            disk: Some(self.size),
+            maxdisk: None,
+            uptime: None,
+            starttime: None,
+            endtime: None,
+            user: None,
+            schedule: None,
+            target: None,
+            disable: None,
+            group: None,
+            max_restart: None,
+            max_relocate: None,
+            enabled: None,
+            storage: None,
+            mode: None,
+            model: if self.model.is_empty() {
+                None
+            } else {
+                Some(self.model)
+            },
+            serial: if self.serial.is_empty() {
+                None
+            } else {
+                Some(self.serial)
+            },
+            wearout: if self.wearout < 0 {
+                None
+            } else {
+                Some(self.wearout as u32)
+            },
         }
     }
 }
@@ -312,6 +400,7 @@ impl ClusterResource {
             "replication" => self.format_replication_details(),
             "ha" => self.format_ha_details(),
             "backup" => self.format_backup_details(),
+            "disk" => self.format_disk_details(),
             _ => self.format_generic_details(),
         }
     }
@@ -436,6 +525,28 @@ impl ClusterResource {
         }
         if let Some(mode) = &self.mode {
             s.push_str(&format!("\nMode: {mode}"));
+        }
+        s
+    }
+
+    fn format_disk_details(&self) -> String {
+        let mut s = format!(
+            "Disk: {}\nNode: {}\nHealth: {}",
+            self.name,
+            self.node.as_ref().unwrap_or(&"N/A".to_string()),
+            self.status
+        );
+        if let Some(size) = self.disk {
+            s.push_str(&format!("\nSize: {} GB", size / (1024 * 1024 * 1024)));
+        }
+        if let Some(model) = &self.model {
+            s.push_str(&format!("\nModel: {model}"));
+        }
+        if let Some(serial) = &self.serial {
+            s.push_str(&format!("\nSerial: {serial}"));
+        }
+        if let Some(wearout) = self.wearout {
+            s.push_str(&format!("\nWearout: {wearout}%"));
         }
         s
     }

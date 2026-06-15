@@ -9,6 +9,7 @@ pub fn view_label(view: &str) -> &str {
         "replication" => "replication",
         "ha" => "HA",
         "backup" => "backups",
+        "disk" => "disks",
         other => other,
     }
 }
@@ -51,6 +52,7 @@ mod tests {
         assert_eq!(view_label("replication"), "replication");
         assert_eq!(view_label("ha"), "HA");
         assert_eq!(view_label("backup"), "backups");
+        assert_eq!(view_label("disk"), "disks");
     }
 
     #[test]

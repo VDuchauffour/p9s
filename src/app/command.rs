@@ -12,6 +12,7 @@ pub(crate) fn resolve_view(input: &str) -> Option<String> {
         "replication" | "repl" => Some("replication".to_string()),
         "ha" => Some("ha".to_string()),
         "backup" | "backups" => Some("backup".to_string()),
+        "disk" | "disks" => Some("disk".to_string()),
         _ => None,
     }
 }
@@ -41,6 +42,8 @@ pub fn view_completion(input: &str) -> Option<&'static str> {
         "ha",
         "backup",
         "backups",
+        "disk",
+        "disks",
     ];
 
     let lower = input.trim().to_lowercase();

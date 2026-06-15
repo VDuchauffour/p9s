@@ -2,8 +2,8 @@ use reqwest::Client;
 
 use super::error::ProxmoxError;
 use super::types::{
-    ClusterBackup, ClusterHaResource, ClusterReplication, ClusterResource, ClusterTask, PveVersion,
-    RrdDataPoint, TaskStatus, WhoAmI,
+    ClusterBackup, ClusterHaResource, ClusterReplication, ClusterResource, ClusterTask, NodeDisk,
+    PveVersion, RrdDataPoint, TaskStatus, WhoAmI,
 };
 
 pub struct ProxmoxClient {
@@ -107,6 +107,45 @@ impl ProxmoxClient {
             .into_iter()
             .map(ClusterBackup::into_resource)
             .collect())
+    }
+
+    pub async fn fetch_node_disks(&self) -> Result<Vec<ClusterResource>, ProxmoxError> {
+        let nodes_data = self.get_data("/api2/json/nodes").await?;
+        let nodes = nodes_data
+            .as_array()
+            .ok_or_else(|| ProxmoxError::Api("Expected nodes array".into()))?;
+        let mut disks: Vec<ClusterResource> = Vec::new();
+        for node in nodes {
+            let node_name = node
+                .get("node")
+                .and_then(|n| n.as_str())
+                .ok_or_else(|| ProxmoxError::Api("Missing node name".into()))?;
+            match self
+                .get_data(&format!("/api2/json/nodes/{node_name}/disks/list"))
+                .await
+            {
+                Ok(data) => {
+                    if let Some(array) = data.as_array() {
+                        for value in array {
+                            match serde_json::from_value::<NodeDisk>(value.clone()) {
+                                Ok(disk) => disks.push(disk.into_resource(node_name.to_string())),
+                                Err(e) => {
+                                    return Err(ProxmoxError::Api(format!(
+                                        "Failed to parse disk on {node_name}: {e}"
+                                    )));
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    return Err(ProxmoxError::Api(format!(
+                        "Failed to fetch disks for {node_name}: {e}"
+                    )));
+                }
+            }
+        }
+        Ok(disks)
     }
 
     pub async fn fetch_rrd_data(
@@ -640,6 +679,48 @@ mod tests {
         assert_eq!(backups[0].status, "enabled");
         assert_eq!(backups[1].status, "disabled");
         assert_eq!(backups[1].storage.as_deref(), Some("local"));
+    }
+
+    #[test]
+    fn test_parse_node_disks() {
+        let json = serde_json::json!({
+            "data": [
+                {
+                    "devpath": "/dev/sda",
+                    "type": "ssd",
+                    "size": 1000204886016u64,
+                    "model": "Samsung SSD 870",
+                    "health": "PASSED",
+                    "serial": "S123456789",
+                    "wearout": 95
+                },
+                {
+                    "devpath": "/dev/sdb",
+                    "type": "hd",
+                    "size": 4000787030016u64,
+                    "model": "",
+                    "health": "UNKNOWN",
+                    "serial": "",
+                    "wearout": -1
+                }
+            ]
+        });
+
+        let data = json.get("data").and_then(|d| d.as_array()).unwrap();
+        let disks: Vec<ClusterResource> = data
+            .iter()
+            .map(|v| serde_json::from_value::<NodeDisk>(v.clone()).unwrap())
+            .map(|d| d.into_resource("pve".to_string()))
+            .collect();
+
+        assert_eq!(disks.len(), 2);
+        assert_eq!(disks[0].r#type, "disk");
+        assert_eq!(disks[0].name, "[ssd] Samsung SSD 870");
+        assert_eq!(disks[0].node.as_deref(), Some("pve"));
+        assert_eq!(disks[0].status, "PASSED");
+        assert_eq!(disks[0].wearout, Some(95));
+        assert_eq!(disks[1].name, "[hd] /dev/sdb");
+        assert_eq!(disks[1].wearout, None);
     }
 
     #[tokio::test]

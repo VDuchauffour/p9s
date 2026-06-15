@@ -70,6 +70,9 @@ pub async fn run(config: Config) -> Result<()> {
                     AppEvent::BackupSnapshot(backups) => {
                         app.set_backups(backups);
                     }
+                    AppEvent::DiskSnapshot(disks) => {
+                        app.set_disks(disks);
+                    }
                     AppEvent::VersionSnapshot(version) => {
                         app.proxmox_version = version;
                     }
@@ -245,6 +248,14 @@ fn spawn_polling_task(
             match client.fetch_backups().await {
                 Ok(backups) => {
                     let _ = tx.send(AppEvent::BackupSnapshot(backups));
+                }
+                Err(e) => {
+                    let _ = tx.send(AppEvent::ApiError(e.to_string()));
+                }
+            }
+            match client.fetch_node_disks().await {
+                Ok(disks) => {
+                    let _ = tx.send(AppEvent::DiskSnapshot(disks));
                 }
                 Err(e) => {
                     let _ = tx.send(AppEvent::ApiError(e.to_string()));
