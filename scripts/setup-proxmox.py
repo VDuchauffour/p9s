@@ -289,9 +289,12 @@ for pool in pools:
 print("\n[4/5] Assigning resources to pools...")
 
 pool_assignments = {
-    "production": [100, 101, 102, 103, 104, 105] + [ct["vmid"] for ct in created_cts if ct["vmid"] <= 203],
-    "staging": [106, 107, 108] + [ct["vmid"] for ct in created_cts if ct["vmid"] == 204],
-    "development": [109, 110, 111] + [ct["vmid"] for ct in created_cts if ct["vmid"] == 205],
+    "production": [100, 101, 102, 103, 104, 105]
+    + [ct["vmid"] for ct in created_cts if ct["vmid"] <= 203],  # ty:ignore[unsupported-operator]
+    "staging": [106, 107, 108]
+    + [ct["vmid"] for ct in created_cts if ct["vmid"] == 204],
+    "development": [109, 110, 111]
+    + [ct["vmid"] for ct in created_cts if ct["vmid"] == 205],
 }
 
 for poolid, vmids in pool_assignments.items():
