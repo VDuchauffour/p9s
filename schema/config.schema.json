@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/pvox/pvox/schema/config.schema.json",
+  "$id": "https://github.com/VDuchauffour/pvox/schema/config.schema.json",
   "title": "pvox configuration",
   "description": "Configuration file for pvox, a k9s-like terminal UI for Proxmox VE. Located at ~/.config/pvox/config.yaml.",
   "type": "object",
