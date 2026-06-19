@@ -1,4 +1,8 @@
-_default:
+set shell := ["bash", "-euo", "pipefail", "-c"]
+set quiet := true
+
+[group('help')]
+default:
     @just --list
 
 pre-commit-install:
@@ -11,10 +15,10 @@ release:
     cargo build --release
 
 run *args:
-    cargo run -- {{args}}
+    cargo run -- {{ args }}
 
 run-release *args:
-    cargo run --release -- {{args}}
+    cargo run --release -- {{ args }}
 
 test:
     cargo test --locked
@@ -50,5 +54,5 @@ clean:
 update:
     cargo update
 
-setup-proxmox:
-    uv run --with proxmoxer  scripts/setup-proxmox.py
+bump level="patch":
+    cargo bump {{ level }}
